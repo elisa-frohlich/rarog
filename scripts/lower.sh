@@ -1,15 +1,17 @@
 #!/bin/bash
 
-MLIR_OPT="/home/elisa/Apps/MLIR/bin/mlir-opt"
+RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
+
+MLIR_OPT=${MLIR_OPT:-mlir-opt}
 
 if [ -z $MODEL_IDX ]
 then
     MODEL_IDX=1
 fi
 
-LINALG_MODEL="model_${MODEL_IDX}_linalg.mlir"
-BUFFERED_MODEL="model_${MODEL_IDX}_buffer.mlir"
-LOWERED_MODEL="model_${MODEL_IDX}_lowered.mlir"
+LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
+BUFFERED_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_buffer.mlir"
+LOWERED_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_lowered.mlir"
 
 # Apply bufferization passes
 $MLIR_OPT \
