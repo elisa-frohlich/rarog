@@ -3,8 +3,8 @@
 RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
 MLIR_RUNNER=${MLIR_RUNNER:-mlir-runner}
-MLIR_UTILS=${MLIR_UTILS:-/usr/lib}
-MLIR_C_UTILS=${MLIR_C_UTILS:-/usr/lib}
+MLIR_UTILS=${MLIR_UTILS:-/usr/lib/llvm/lib/libmlir_runner_utils.so}
+MLIR_C_UTILS=${MLIR_C_UTILS:-/usr/lib/llvm/lib/libmlir_c_runner_utils.so}
 
 MODEL_IDX="${MODEL_IDX:-1}"
 
