@@ -13,9 +13,9 @@ Memory allocation heuristics for tensor programs
 
 ### Running the models
 
-The script [iree.sh](scripts/iree.sh) is responsible to convert a model from ONNX to torch MLIR, compile and run this model using the IREE compiler. The script assumes the IREE compiler is installed inside a Python environment located in a folder called `venv` in this repository. If this is not the case, you must:
+The script [iree.sh](scripts/iree.sh) is responsible to convert a model from ONNX to torch MLIR, and compile and run this converted model using the IREE compiler. The script assumes the IREE compiler is installed inside a Python environment located in a folder called `venv` in this repository. If this is not the case, you must:
 - If IREE is installed inside a Python environment, set the variable `PYTHON_VENV_PATH`
-- If IREE is built from source out of the `$PATH` variable, set the variables `IREE_IMPORT_ONNX`, `IREE_COMPILE` and `IREE_RUN_MODULE`
+- If IREE is built from source out of the `$PATH` environment variable, set the variables `IREE_IMPORT_ONNX`, `IREE_COMPILE` and `IREE_RUN_MODULE`
 
 The script runs the first model by default, but you can change it by setting variable `MODEL_IDX` to some value between the available models before running the script.
 
@@ -50,7 +50,7 @@ func.func @main() {
 func.func private @printMemrefF32(tensor<*xf32>)
 ```
 
-Then, you can lower it to the LLVM dialect using the [lower.sh](scripts/lower.sh) script, and run it using the [run.sh](scripts/run.sh) script.
+Then, you can lower it to the LLVM dialect using the [lower.sh](scripts/lower.sh) script, and run it using the [run.sh](scripts/run.sh) script. Both scripts assume the binaries related to MLIR (`mlir-opt` and `mlir-runner`) are in the `$PATH` environment variable. If this is not the case, define the variables `MLIR_OPT` and `MLIR_RUNNER` with their respective path. Also, the run script assumes that some MLIR libraries are within the `/usr/lib/llvm/lib` directory. Again, set the variables `MLIR_UTILS` and `MLIR_C_UTILS` to the path to the files `libmlir_runner_utils.so` and `libmlir_c_runner_utils.so`, respectively.
 
 ---
 
@@ -65,4 +65,4 @@ Then, you can lower it to the LLVM dialect using the [lower.sh](scripts/lower.sh
 
 ### Generating the models
 
-The Nasbench has over 423k benchmarks but, due to space constraints, only 100 were included in this repository. The script [NASBenchConvert.py](scripts/NASBenchConvert.py) can generate the remaining models, although it will take some time to run (ONNX files are already included on the .gitignore).
+The Nasbench has over 423k benchmarks but, due to space constraints, only 100 were included in this repository. The script [NASBenchConvert.py](scripts/NASBenchConvert.py) can generate the remaining models, although it will take some time to run (ONNX files are already included on the .gitignore). However, it's necessary to extract the file [nasbench_full.json.tar.gz](nasbench_data/nasbench_full.json.tar.gz) first.

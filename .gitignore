@@ -2,3 +2,4 @@
 tmp/
 venv/
 *.onnx
+nasbench_data/nasbench_full.json
