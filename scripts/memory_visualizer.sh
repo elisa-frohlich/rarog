@@ -15,35 +15,41 @@ then
     MODEL_IDX=1
 fi
 
-echo "Running model_$MODEL_IDX"
+for MODEL_IDX in {1..100}
+do
+    echo -ne "Running model_$MODEL_IDX\r"
 
-if ! [ -f $RAROG_OPT_PATH ]
-then
-    echo "rarog-opt is not compiled. Starting compilation process..."
-    cd $MEMORY_VISUALIZER
-    cmake -B build .
-    cmake --build build
-    if [[ $? != 0 ]]
+    if ! [ -f $RAROG_OPT_PATH ]
     then
-        echo "Compilation failed! Terminating..."
-        exit 1
+        # echo "rarog-opt is not compiled. Starting compilation process..."
+        cd $MEMORY_VISUALIZER
+        cmake -B build .
+        cmake --build build
+        if [[ $? != 0 ]]
+        then
+            echo "Compilation failed! Terminating..."
+            exit 1
+        fi
+        cd -
     fi
-    cd -
-fi
 
-mkdir -p tmp
+    mkdir -p tmp
 
-ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
-MLIR_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}.mlir"
-LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
+    ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
+    MLIR_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}.mlir"
+    LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
+    OUTPUT_FILE="${RAROG_ROOT}/memory_allocation_instances/model_${MODEL_IDX}.in"
 
-# Convert ONNX model to MLIR (torch dialect)
-torch-mlir-import-onnx $ONNX_MODEL -o $MLIR_MODEL
+    # Convert ONNX model to MLIR (torch dialect)
+    torch-mlir-import-onnx $ONNX_MODEL -o $MLIR_MODEL
 
-# Lower from torch to linalg dialect
-torch-mlir-opt \
-    --torch-onnx-to-torch-backend-pipeline \
-    --torch-backend-to-linalg-on-tensors-backend-pipeline \
-    $MLIR_MODEL -o $LINALG_MODEL
+    # Lower from torch to linalg dialect
+    torch-mlir-opt \
+        --torch-onnx-to-torch-backend-pipeline \
+        --torch-backend-to-linalg-on-tensors-backend-pipeline \
+        $MLIR_MODEL -o $LINALG_MODEL
 
-$RAROG_OPT_PATH --memory-visualizer $LINALG_MODEL -o /dev/null
+    $RAROG_OPT_PATH --memory-visualizer $LINALG_MODEL -o /dev/null > $OUTPUT_FILE
+
+    rm -rf tmp
+done

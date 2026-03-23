@@ -26,45 +26,83 @@ namespace {
         
         llvm::DenseMap<Operation*,int64_t> instructionMapping;
         int64_t idx = 0;
-        Block &bodyBlock = funcOp.getBody().front();
         funcOp.walk([&](Operation *op) {
-          llvm::outs() << idx << ": " << *op << "\n";
+          // llvm::outs() << "    " << *op << "\n";
           instructionMapping[op] = idx++;
         });
-  
-        llvm::outs() << "\n\n";
+        int64_t numInst = idx;
 
-        for (auto allocOp : funcOp.getOps<memref::AllocOp>()) {
-          auto type = allocOp.getResult().getType();
-          auto result = allocOp.getResult();
-          
-          llvm::outs() << "Found alloc instruction at idx: " << instructionMapping.at(result.getDefiningOp()) << "\n\n";
+        llvm::DenseMap<int64_t,size_t> bufferSizeMapping;
+        llvm::DenseMap<int64_t,llvm::SmallVector<std::pair<int8_t,int64_t>>> opBufferMapping;
 
-          // Size computation
-          int64_t numElements = 1;
-          for (auto dim : type.getShape()) {
-            if (dim == ShapedType::kDynamic) dim = 1;
-            numElements *= dim;
+        idx = 0;
+        funcOp.walk([&](Operation *op) {
+          if (auto allocOp = dyn_cast<memref::AllocOp>(op)) {
+            // llvm::outs() << "Found memref.alloc instruction at idx: " << instructionMapping.at(op) << "\n";
+
+            auto result = allocOp.getResult();
+            auto type = result.getType();
+            
+            // Usage information
+            llvm::SmallVector<int64_t> uses;
+            for (auto user : result.getUsers()) {
+              uses.emplace_back(instructionMapping.at(user));
+            }
+            llvm::sort(uses.begin(), uses.end());
+            
+            // Buffer has some uses
+            if (uses.size() > 0) {
+
+              // Size computation
+              int64_t numElements = 1;
+              for (auto dim : type.getShape()) {
+                if (dim == ShapedType::kDynamic) dim = 1;
+                numElements *= dim;
+              }
+      
+              auto elemType = type.getElementType();
+              auto typeSize = elemType.getIntOrFloatBitWidth() / 8;
+
+              // Buffer [idx] has size numElements*typeSize
+              bufferSizeMapping[idx] = numElements*typeSize;
+              opBufferMapping[instructionMapping.at(op)].emplace_back(0,idx);
+      
+              // Size information
+              // llvm::outs() << "\tSize: " << numElements*typeSize << "\n";
+              
+              // llvm::outs() << "\t\tType: " << type << "\n";
+              // llvm::outs() << "\t\tElement Type: " << elemType << "\n";
+              // llvm::outs() << "\t\tNumber of Elements: " << numElements << "\n";
+              // llvm::outs() << "\t\tType size: " << typeSize << "\n\n";
+      
+              // llvm::outs() << "\tUses:";
+              // for (auto use : uses) {
+              //   llvm::outs() << " " << use;
+              // } 
+              // llvm::outs() << "\n\n";
+              for (size_t i = 0; i < uses.size()-1; i++){
+                opBufferMapping[uses[i]].emplace_back(1,idx);
+              }
+              opBufferMapping[uses[uses.size()-1]].emplace_back(2,idx);
+              ++idx;
+            } 
           }
+        }); 
 
-          auto elemType = type.getElementType();
-          auto typeSize = elemType.getIntOrFloatBitWidth() / 8;
-
-          // Size information
-          llvm::outs() << "\tSize: " << numElements*typeSize << "\n";
-          
-          llvm::outs() << "\t\tType: " << type << "\n";
-          llvm::outs() << "\t\tElement Type: " << elemType << "\n";
-          llvm::outs() << "\t\tNumber of Elements: " << numElements << "\n";
-          llvm::outs() << "\t\tType size: " << typeSize << "\n\n";
-
-          // Usage information
-          llvm::outs() << "\tUsed at:\n";
-          for (auto user : result.getUsers()) {
-            llvm::outs() << instructionMapping.at(user) << ": ";
-            llvm::outs() << *user << "\n";
+        for (size_t i = 0; i < numInst; i++) {
+          if (opBufferMapping.contains(i)) {
+            llvm::outs() << i << "\n";
+            llvm::sort(opBufferMapping.at(i).begin(), opBufferMapping.at(i).end());
+            for (auto [op, id] : opBufferMapping.at(i)) {
+              if (op == 0) {
+                llvm::outs() << "+ B" << id << " " << bufferSizeMapping.at(id) << "\n";
+              } else if (op == 1) {
+                llvm::outs() << "* B" << id << "\n";
+              } else {
+                llvm::outs() << "- B" << id << "\n";
+              }
+            }
           }
-          llvm::outs() << "\n\n"; 
         }
       }
     }
