@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
   mlir::registerAllPasses();
 
   rarog::registerMemoryVisualizerPipeline();
+  rarog::registerNasbenchLoweringPipeline();
 
   mlir::DialectRegistry registry;
   mlir::registerAllDialects(registry);

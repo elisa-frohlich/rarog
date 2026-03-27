@@ -1,11 +1,17 @@
 #include "Pipeline.h"
 #include "MemoryVisualizer.h"
+#include "AddMainFunction.h"
 
-#include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
+#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "mlir/Conversion/Passes.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"
+#include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Dialect/Bufferization/Transforms/Bufferize.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/Affine/Transforms/Passes.h"
 #include "mlir/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Pass/PassOptions.h"
@@ -18,33 +24,76 @@ namespace {
 
 void addMemoryVisualizerPipeline(OpPassManager &pm) {
 
-    // --one-shot-bufferize="bufferize-function-boundaries"
-    bufferization::OneShotBufferizePassOptions bufferizationOptions;
-    bufferizationOptions.bufferizeFunctionBoundaries = true;
-    pm.addPass(
-        bufferization::createOneShotBufferizePass(bufferizationOptions)
-    );
+  // --one-shot-bufferize="bufferize-function-boundaries"
+  bufferization::OneShotBufferizePassOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  pm.addPass(
+      bufferization::createOneShotBufferizePass(bufferizationOptions)
+  );
 
-    // // --buffer-deallocation-pipeline
-    // memref::ExpandReallocPassOptions expandAllocPassOptions{
-    //   /*emitDeallocs=*/false};
-    // pm.addPass(memref::createExpandReallocPass(expandAllocPassOptions));
-    // pm.addPass(createCanonicalizerPass());
+  // // --buffer-deallocation-pipeline
+  // memref::ExpandReallocPassOptions expandAllocPassOptions{
+  //   /*emitDeallocs=*/false};
+  // pm.addPass(memref::createExpandReallocPass(expandAllocPassOptions));
+  // pm.addPass(createCanonicalizerPass());
 
-    // bufferization::OwnershipBasedBufferDeallocationPassOptions deallocationOptions;
-    // deallocationOptions.privateFuncDynamicOwnership = true;
+  // bufferization::OwnershipBasedBufferDeallocationPassOptions deallocationOptions;
+  // deallocationOptions.privateFuncDynamicOwnership = true;
 
-    // pm.addPass(
-    //     bufferization::createOwnershipBasedBufferDeallocationPass(deallocationOptions)
-    // );
-    // pm.addPass(createCanonicalizerPass());
-    // pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
-    // pm.addPass(bufferization::createLowerDeallocationsPass());
-    // pm.addPass(createCSEPass());
-    // pm.addPass(createCanonicalizerPass());
+  // pm.addPass(
+  //     bufferization::createOwnershipBasedBufferDeallocationPass(deallocationOptions)
+  // );
+  // pm.addPass(createCanonicalizerPass());
+  // pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
+  // pm.addPass(bufferization::createLowerDeallocationsPass());
+  // pm.addPass(createCSEPass());
+  // pm.addPass(createCanonicalizerPass());
 
-    // --memory-visualizer
-    pm.addPass(rarog::createMemoryVisualizerPass());
+  // --memory-visualizer
+  pm.addPass(rarog::createMemoryVisualizerPass());
+}
+
+void addNasbenchLoweringPipeline(OpPassManager &pm) {
+  pm.addPass(rarog::createAddMainFunctionPass());
+
+  // --one-shot-bufferize="bufferize-function-boundaries"
+  bufferization::OneShotBufferizePassOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  pm.addPass(
+      bufferization::createOneShotBufferizePass(bufferizationOptions)
+  );
+
+  // --buffer-deallocation-pipeline
+  // funcPM.addPass(bufferization::createBufferLoopHoistingPass());
+  bufferization::BufferDeallocationPipelineOptions bufferDeallocOptions;
+  mlir::bufferization::buildBufferDeallocationPipeline(pm, bufferDeallocOptions);
+  // funcPM.addPass(mlir::bufferization::createOptimizeAllocationLivenessPass());
+  // funcPM.addPass(mlir::createConvertBufferizationToMemRefPass());
+
+  // --convert-linalg-to-loops
+  pm.addPass(createConvertLinalgToLoopsPass());
+  // --expand-strided-metadata
+  pm.addPass(memref::createExpandStridedMetadataPass());
+  // --lower-affine
+  pm.addPass(createLowerAffinePass());
+  // --convert-vector-to-llvm
+  pm.addPass(createConvertVectorToLLVMPass());
+  // --convert-math-to-llvm
+  pm.addPass(createConvertMathToLLVMPass());
+  // --convert-math-to-libm
+  pm.addPass(createConvertMathToLibmPass());
+  // --convert-scf-to-cf
+  pm.addPass(createSCFToControlFlowPass());
+  // --convert-arith-to-llvm
+  pm.addPass(createArithToLLVMConversionPass());
+  // --convert-func-to-llvm
+  pm.addPass(createConvertFuncToLLVMPass());
+  // --convert-cf-to-llvm
+  pm.addPass(createConvertControlFlowToLLVMPass());
+  // --finalize-memref-to-llvm
+  pm.addPass(createFinalizeMemRefToLLVMConversionPass());
+  // --reconcile-unrealized-casts
+  pm.addPass(createReconcileUnrealizedCastsPass());
 }
 
 } // namespace
@@ -54,6 +103,14 @@ namespace rarog {
 void registerMemoryVisualizerPipeline() {
   PassPipelineRegistration<>("memory-visualizer", "Visualize memory allocation",
                              addMemoryVisualizerPipeline);
+}
+
+void registerNasbenchLoweringPipeline() {
+  PassPipelineRegistration<>(
+    "nasbench-lowering-pipeline",
+    "Insert main function and lower nasbench model to llvm",
+    addNasbenchLoweringPipeline
+  );
 }
 
 } // namespace rarog

@@ -4,6 +4,7 @@
 namespace rarog {
 
 void registerMemoryVisualizerPipeline();
+void registerNasbenchLoweringPipeline();
 
 } // namespace rarog
 

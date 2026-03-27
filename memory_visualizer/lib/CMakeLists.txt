@@ -1,6 +1,7 @@
 add_mlir_library(Rarog
     Pipeline.cpp
     MemoryVisualizer.cpp
+    AddMainFunction.cpp
 
     LINK_LIBS PUBLIC
       MLIRIR
