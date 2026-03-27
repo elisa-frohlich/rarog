@@ -6,7 +6,6 @@ PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 
 source $PYTHON_VENV_PATH
 
-NASBENCH_PATH="${RAROG_ROOT}/onnx_models"
 MEMORY_VISUALIZER="${RAROG_ROOT}/memory_visualizer"
 RAROG_OPT_PATH="${MEMORY_VISUALIZER}/build/bin/rarog-opt"
 
@@ -15,41 +14,99 @@ then
     MODEL_IDX=1
 fi
 
-for MODEL_IDX in {1..100}
-do
-    echo -ne "Running model_$MODEL_IDX\r"
+ST="${ST:-1}"
+ED="${ED:-423625}"
 
-    if ! [ -f $RAROG_OPT_PATH ]
+if ! [ -f $RAROG_OPT_PATH ]
+then
+    # echo "rarog-opt is not compiled. Starting compilation process..."
+    cd $MEMORY_VISUALIZER
+    cmake -B build .
+    cmake --build build
+    if [[ $? != 0 ]]
     then
-        # echo "rarog-opt is not compiled. Starting compilation process..."
-        cd $MEMORY_VISUALIZER
-        cmake -B build .
-        cmake --build build
-        if [[ $? != 0 ]]
-        then
-            echo "Compilation failed! Terminating..."
-            exit 1
+        echo "Compilation failed! Terminating..."
+        exit 1
+    fi
+    cd -
+fi
+
+get_next_unprocessed() {
+    local start=$1
+    local end=$2
+    local output_dir="${RAROG_ROOT}/memory_allocation_instances"
+    
+    # Get all processed indices in one go
+    local processed=$(ls "$output_dir" 2>/dev/null | \
+        grep -o 'model_[0-9]*\.in' | \
+        sed 's/model_\([0-9]*\)\.in/\1/' | \
+        sort -n)
+    
+    # Find the first gap
+    local expected=$start
+    for idx in $processed; do
+        if [ "$idx" -gt "$expected" ]; then
+            echo "$expected"
+            return
         fi
-        cd -
+        expected=$((idx + 1))
+        if [ "$expected" -gt "$end" ]; then
+            echo ""  # All done
+            return
+        fi
+    done
+    
+    # If we processed all consecutive from start, next is expected
+    if [ "$expected" -le "$end" ]; then
+        echo "$expected"
+    else
+        echo "$end"  # All done
+    fi
+}
+
+process_model() {
+    local MODEL_IDX=$1
+    local OUTPUT_FILE="${RAROG_ROOT}/memory_allocation_instances/model_${MODEL_IDX}.in"
+
+    if [ -f $OUTPUT_FILE ]
+    then
+        return 0
     fi
 
-    mkdir -p tmp
+    local TMP_DIR="tmp_${MODEL_IDX}"
+    local ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
+    local MLIR_MODEL="${RAROG_ROOT}/${TMP_DIR}/model_${MODEL_IDX}.mlir"
+    local LINALG_MODEL="${RAROG_ROOT}/${TMP_DIR}/model_${MODEL_IDX}_linalg.mlir"
 
-    ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
-    MLIR_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}.mlir"
-    LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
-    OUTPUT_FILE="${RAROG_ROOT}/memory_allocation_instances/model_${MODEL_IDX}.in"
+
+    mkdir -p "${RAROG_ROOT}/${TMP_DIR}"
 
     # Convert ONNX model to MLIR (torch dialect)
-    torch-mlir-import-onnx $ONNX_MODEL -o $MLIR_MODEL
+    torch-mlir-import-onnx "$ONNX_MODEL" -o "$MLIR_MODEL"
 
     # Lower from torch to linalg dialect
     torch-mlir-opt \
         --torch-onnx-to-torch-backend-pipeline \
         --torch-backend-to-linalg-on-tensors-backend-pipeline \
-        $MLIR_MODEL -o $LINALG_MODEL
+        "$MLIR_MODEL" -o "$LINALG_MODEL"
 
-    $RAROG_OPT_PATH --memory-visualizer $LINALG_MODEL -o /dev/null > $OUTPUT_FILE
+    "$RAROG_OPT_PATH" --memory-visualizer "$LINALG_MODEL" -o /dev/null > "$OUTPUT_FILE"
 
-    rm -rf tmp
-done
+    rm -rf "${RAROG_ROOT}/${TMP_DIR}"
+}
+
+
+export -f process_model
+export RAROG_ROOT
+export RAROG_OPT_PATH
+
+if command -v parallel &> /dev/null
+then
+    seq $(get_next_unprocessed $ST $ED) $ED | parallel --progress -j 4 process_model {}
+else
+    for MODEL_IDX in $(seq $ST $ED)
+    do
+        echo -ne "Running model_${MODEL_IDX}\r"
+        process_model "$MODEL_IDX"
+    done
+fi

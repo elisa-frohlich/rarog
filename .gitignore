@@ -5,3 +5,4 @@ venv/
 nasbench_data/nasbench_full.json
 */build/
 .vscode
+*.in
