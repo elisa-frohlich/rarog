@@ -1,5 +1,6 @@
-# Raróg
-Memory allocation heuristics for tensor programs
+<p align="center">
+  <img alt="Project Banner" src="./assets/images/BannerRarog.png" width="95%" height="auto"/></br>
+</p>
 
 ---
 
