@@ -4,7 +4,8 @@
  */
 
 // #include "MemoryVisualizerPass.h"
-#include "Pipeline.h"
+#include "Analysis/Pipeline.h"
+#include "Transform/Pipeline.h"
 
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
@@ -16,7 +17,7 @@
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
 
-  rarog::registerMemoryVisualizerPipeline();
+  rarog::registerMemoryAllocationInstantiationPipeline();
   rarog::registerNasbenchLoweringPipeline();
 
   mlir::DialectRegistry registry;

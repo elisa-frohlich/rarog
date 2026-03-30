@@ -12,12 +12,10 @@ namespace rarog {
 
 namespace {
 
-  struct MemoryVisualizerPass : public PassWrapper<MemoryVisualizerPass, OperationPass<ModuleOp>> {
+  struct MemoryAllocationInstantiationPass : public PassWrapper<MemoryAllocationInstantiationPass, OperationPass<ModuleOp>> {
   
     void runOnOperation() override {
       ModuleOp module = getOperation();
-  
-      
       
       // Iterate over all functions in the module
       for (auto funcOp : module.getOps<func::FuncOp>()) {
@@ -109,8 +107,8 @@ namespace {
   };
 } // namespace
 
-std::unique_ptr<mlir::Pass> createMemoryVisualizerPass() {
-  return std::make_unique<MemoryVisualizerPass>();
+std::unique_ptr<mlir::Pass> createMemoryAllocationInstantiationPass() {
+  return std::make_unique<MemoryAllocationInstantiationPass>();
 }
 
 } // namespace rarog

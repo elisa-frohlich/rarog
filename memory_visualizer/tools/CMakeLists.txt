@@ -12,7 +12,8 @@ llvm_update_compile_flags(rarog-opt)
 target_link_libraries(rarog-opt
   PRIVATE
 
-  Rarog
+  RarogAnalysis
+  RarogTransform
 
   # MLIR dependencies
   MLIROptLib

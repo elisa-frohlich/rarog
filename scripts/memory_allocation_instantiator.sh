@@ -90,7 +90,7 @@ process_model() {
         --torch-backend-to-linalg-on-tensors-backend-pipeline \
         "$MLIR_MODEL" -o "$LINALG_MODEL"
 
-    "$RAROG_OPT_PATH" --memory-visualizer "$LINALG_MODEL" -o /dev/null > "$OUTPUT_FILE"
+    "$RAROG_OPT_PATH" --memory-allocation-instantiation "$LINALG_MODEL" -o /dev/null > "$OUTPUT_FILE"
 
     rm -rf "${RAROG_ROOT}/${TMP_DIR}"
 }
