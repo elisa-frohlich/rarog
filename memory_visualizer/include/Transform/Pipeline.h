@@ -4,6 +4,7 @@
 namespace rarog {
 
 void registerNasbenchLoweringPipeline();
+void registerInstrumentMallocPipeline();
 
 } // namespace rarog
 

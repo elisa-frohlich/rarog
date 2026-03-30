@@ -1,5 +1,6 @@
 #include "Pipeline.h"
 #include "AddNasbenchMainFunction.h"
+#include "InstrumentMalloc.h"
 
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
@@ -64,6 +65,10 @@ void addNasbenchLoweringPipeline(OpPassManager &pm) {
   pm.addPass(createReconcileUnrealizedCastsPass());
 }
 
+void addInstrumentMallocPipeline(OpPassManager &pm) {
+  pm.addPass(rarog::createInstrumentMallocPass());
+}
+
 } // namespace
 
 namespace rarog {
@@ -73,6 +78,14 @@ void registerNasbenchLoweringPipeline() {
     "nasbench-lowering-pipeline",
     "Insert main function and lower nasbench model to llvm",
     addNasbenchLoweringPipeline
+  );
+}
+
+void registerInstrumentMallocPipeline() {
+  PassPipelineRegistration<>(
+    "instrument-malloc",
+    "Change calls to malloc into calls to instrument_malloc",
+    addInstrumentMallocPipeline
   );
 }
 
