@@ -6,7 +6,7 @@
 
 void *instrumented_malloc(size_t size) {
     void *ptr = malloc(size);
-    printf("malloc %p %d\n", ptr, (int)size);
+    fprintf(stderr, "malloc %p %d\n", ptr, (int)size);
 
     return ptr;
 }
@@ -14,5 +14,5 @@ void *instrumented_malloc(size_t size) {
 // Optionally also wrap free, calloc, etc.
 void instrumented_free(void *ptr) {
     free(ptr);
-    printf("free %p\n", ptr);
+    fprintf(stderr, "free %p\n", ptr);
 }
