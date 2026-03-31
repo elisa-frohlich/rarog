@@ -2,8 +2,7 @@
 
 RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
-MEMORY_VISUALIZER="${RAROG_ROOT}/memory_visualizer"
-RAROG_OPT_PATH="${MEMORY_VISUALIZER}/build/bin/rarog-opt"
+RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
 if [ -z $MODEL_IDX ]
 then
@@ -13,8 +12,8 @@ fi
 if ! [ -f $RAROG_OPT_PATH ]
 then
     # echo "rarog-opt is not compiled. Starting compilation process..."
-    cd $MEMORY_VISUALIZER
-    cmake -B build .
+    cd $RAROG_ROOT
+    cmake -B build . --fresh
     cmake --build build
     if [[ $? != 0 ]]
     then

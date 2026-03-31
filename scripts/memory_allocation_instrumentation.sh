@@ -6,13 +6,12 @@ PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 
 source $PYTHON_VENV_PATH
 
-MEMORY_VISUALIZER="${RAROG_ROOT}/memory_visualizer"
-RAROG_OPT_PATH="${MEMORY_VISUALIZER}/build/bin/rarog-opt"
+RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
 MLIR_RUNNER=${MLIR_RUNNER:-mlir-runner}
 MLIR_UTILS=${MLIR_UTILS:-/usr/lib/llvm/lib/libmlir_runner_utils.so}
 MLIR_C_UTILS=${MLIR_C_UTILS:-/usr/lib/llvm/lib/libmlir_c_runner_utils.so}
-INSTRUMENTED_MALLOC="${RAROG_ROOT}/memory_visualizer/utils/libinstrumented_malloc.so"
+INSTRUMENTED_MALLOC="${RAROG_ROOT}/utils/libinstrumented_malloc.so"
 
 if [ -z $MODEL_IDX ]
 then
@@ -25,7 +24,7 @@ ED="${ED:-100}"
 if ! [ -f $RAROG_OPT_PATH ]
 then
     # echo "rarog-opt is not compiled. Starting compilation process..."
-    cd $MEMORY_VISUALIZER
+    cd $RAROG_ROOT
     cmake -B build .
     cmake --build build
     if [[ $? != 0 ]]

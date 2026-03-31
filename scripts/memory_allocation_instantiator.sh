@@ -6,8 +6,7 @@ PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 
 source $PYTHON_VENV_PATH
 
-MEMORY_VISUALIZER="${RAROG_ROOT}/memory_visualizer"
-RAROG_OPT_PATH="${MEMORY_VISUALIZER}/build/bin/rarog-opt"
+RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
 if [ -z $MODEL_IDX ]
 then
@@ -20,7 +19,7 @@ ED="${ED:-423625}"
 if ! [ -f $RAROG_OPT_PATH ]
 then
     # echo "rarog-opt is not compiled. Starting compilation process..."
-    cd $MEMORY_VISUALIZER
+    cd $RAROG_ROOT
     cmake -B build .
     cmake --build build
     if [[ $? != 0 ]]
