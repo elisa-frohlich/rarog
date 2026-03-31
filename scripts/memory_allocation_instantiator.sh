@@ -14,7 +14,7 @@ then
 fi
 
 ST="${ST:-1}"
-ED="${ED:-423625}"
+ED="${ED:-100}"
 
 if ! [ -f $RAROG_OPT_PATH ]
 then
