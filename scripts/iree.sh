@@ -2,6 +2,11 @@
 
 RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
+if [ -f ${RAROG_ROOT}/.env ]
+then
+    source ${RAROG_ROOT}/.env
+fi
+
 PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 source $PYTHON_VENV_PATH
 

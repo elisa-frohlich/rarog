@@ -4,10 +4,7 @@ RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
 RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
-if [ -z $MODEL_IDX ]
-then
-    MODEL_IDX=1
-fi
+MODEL_NAME="${MODEL_NAME:-model_1}"
 
 if ! [ -f $RAROG_OPT_PATH ]
 then
@@ -23,8 +20,8 @@ then
     cd -
 fi
 
-LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
-INSTRUMENTED_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_instrumented.mlir"
+LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
+INSTRUMENTED_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_instrumented.mlir"
 
 $RAROG_OPT_PATH \
     --nasbench-lowering-pipeline \

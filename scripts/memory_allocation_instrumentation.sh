@@ -2,9 +2,15 @@
 
 RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
+if [ -f ${RAROG_ROOT}/.env ]
+then
+    source ${RAROG_ROOT}/.env
+fi
+
 PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 
 source $PYTHON_VENV_PATH
+
 
 RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
@@ -19,13 +25,13 @@ then
 fi
 
 ST="${ST:-1}"
-ED="${ED:-100}"
+ED="${ED:-423625}"
 
 if ! [ -f $RAROG_OPT_PATH ]
 then
     # echo "rarog-opt is not compiled. Starting compilation process..."
     cd $RAROG_ROOT
-    cmake -B build .
+    cmake -B build . --fresh
     cmake --build build
     if [[ $? != 0 ]]
     then
@@ -38,7 +44,7 @@ fi
 get_next_unprocessed() {
     local start=$1
     local end=$2
-    local output_dir="${RAROG_ROOT}/memory_allocation_instances"
+    local output_dir="${RAROG_ROOT}/memory_allocation_output"
     
     # Get all processed indices in one go
     local processed=$(ls "$output_dir" 2>/dev/null | \
@@ -70,7 +76,7 @@ get_next_unprocessed() {
 
 process_model() {
     local MODEL_IDX=$1
-    local OUTPUT_FILE="${RAROG_ROOT}/memory_allocation_answers/model_${MODEL_IDX}.out"
+    local OUTPUT_FILE="${RAROG_ROOT}/memory_allocation_output/model_${MODEL_IDX}.out"
 
     if [ -f $OUTPUT_FILE ]
     then

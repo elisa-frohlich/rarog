@@ -4,7 +4,6 @@ RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
 RAROG_OPT_PATH="${RAROG_ROOT}/build/bin/rarog-opt"
 
-# MODEL_PATH="${MODEL_PATH:-$RAROG_ROOT/onnx_models}"
 MODEL_NAME="${MODEL_NAME:-model_1}"
 
 if ! [ -f $RAROG_OPT_PATH ]
@@ -22,9 +21,5 @@ then
 fi
 
 LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
-LOWERED_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_lowered.mlir"
 
-# Apply lowering pipeline
-$RAROG_OPT_PATH \
-    --nasbench-lowering-pipeline \
-    $LINALG_MODEL -o $LOWERED_MODEL
+$RAROG_OPT_PATH --memory-allocation-instantiation "$LINALG_MODEL" -o /dev/null > "${RAROG_ROOT}/tmp/${MODEL_NAME}.in"

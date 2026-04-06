@@ -18,7 +18,7 @@ void runOnOperation() override {
 
   LLVM::LLVMFuncOp targetFunc = nullptr;
   for (auto func : module.getOps<LLVM::LLVMFuncOp>()) {
-    if (func.getName() == "tf2onnx") {
+    if (func.getName() == "torch_jit" || func.getName() == "tf2onnx") {
       targetFunc = func;
       break;
     }

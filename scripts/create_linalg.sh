@@ -2,24 +2,26 @@
 
 RAROG_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 
+if [ -f ${RAROG_ROOT}/.env ]
+then
+    source ${RAROG_ROOT}/.env
+fi
+
 PYTHON_VENV_PATH="${PYTHON_VENV_PATH:-$RAROG_ROOT/venv/bin/activate}"
 
 source $PYTHON_VENV_PATH
 
-NASBENCH_PATH="${RAROG_ROOT}/onnx_models"
+MODEL_PATH="${MODEL_PATH:-$RAROG_ROOT/onnx_models}"
+MODEL_NAME="${MODEL_NAME:-model_1}"
 
-if [ -z $MODEL_IDX ]
-then
-    MODEL_IDX=1
-fi
 
-echo "Running model_$MODEL_IDX"
+echo "Running $MODEL_NAME"
 
 mkdir -p tmp
 
-ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
-MLIR_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}.mlir"
-LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
+ONNX_MODEL="${MODEL_PATH}/${MODEL_NAME}.onnx"
+MLIR_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}.mlir"
+LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
 
 # Convert ONNX model to MLIR (torch dialect)
 torch-mlir-import-onnx $ONNX_MODEL -o $MLIR_MODEL
