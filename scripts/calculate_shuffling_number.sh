@@ -15,7 +15,7 @@ then
     MODEL_IDX=1
 fi
 
-if ! [ -f $RAROG_OPT_PATH ]
+if ! [ -f $RAROG_OPT_PATH ] || [ $FRESH ]
 then
     print_blue "rarog-opt is not compiled. Starting compilation process..."
     cd $RAROG_ROOT
