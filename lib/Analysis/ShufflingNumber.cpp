@@ -22,6 +22,22 @@ struct ShufflingNumberPass
         }
 
         llvm::outs() << "Hello World!" << "\n";
+
+        fn.walk([&](Operation *op) -> WalkResult {
+            std::string opName = op->getName().getStringRef().str();
+            debug(opName);
+            auto operands = op->getOperands();
+            llvm::outs() << "There are " << operands.size() << " operands\n";
+            for (auto operand : operands) {
+                auto uses = operand.getNumUses();
+                debug(uses);
+                // TODO: Map out which VARIABLES are used, WHEN they are
+                // defined.
+                // https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
+            }
+            llvm::outs() << "\n";
+            return WalkResult::advance();
+        });
     }
 };
 
