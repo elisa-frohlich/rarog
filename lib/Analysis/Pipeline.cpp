@@ -24,17 +24,17 @@ namespace {
 
 void addMemoryAllocationInstantiationPipeline(OpPassManager &pm) {
 
-    // --one-shot-bufferize="bufferize-function-boundaries"
-    bufferization::OneShotBufferizePassOptions bufferizationOptions;
-    bufferizationOptions.bufferizeFunctionBoundaries = true;
-    pm.addPass(bufferization::createOneShotBufferizePass(bufferizationOptions));
+  // --one-shot-bufferize="bufferize-function-boundaries"
+  bufferization::OneShotBufferizePassOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  pm.addPass(bufferization::createOneShotBufferizePass(bufferizationOptions));
 
-    // --memory-AllocationInstantiation
-    pm.addPass(rarog::createMemoryAllocationInstantiationPass());
+  // --memory-AllocationInstantiation
+  pm.addPass(rarog::createMemoryAllocationInstantiationPass());
 }
 
 void addShufflingNumberPass(OpPassManager &pm) {
-    pm.addPass(rarog::createShufflingNumberPass());
+  pm.addPass(rarog::createShufflingNumberPass());
 }
 
 } // namespace
@@ -42,15 +42,15 @@ void addShufflingNumberPass(OpPassManager &pm) {
 namespace rarog {
 
 void registerMemoryAllocationInstantiationPipeline() {
-    PassPipelineRegistration<>("memory-allocation-instantiation",
-                               "Instantiate memory allocation problem",
-                               addMemoryAllocationInstantiationPipeline);
+  PassPipelineRegistration<>("memory-allocation-instantiation",
+                             "Instantiate memory allocation problem",
+                             addMemoryAllocationInstantiationPipeline);
 }
 
 void registerShufflingNumberPass() {
-    PassPipelineRegistration<>("shuffling-number-pass",
-                               "Calculate the shuffling number of a function",
-                               addShufflingNumberPass);
+  PassPipelineRegistration<>("shuffling-number-pass",
+                             "Calculate the shuffling number of a function",
+                             addShufflingNumberPass);
 }
 
 } // namespace rarog

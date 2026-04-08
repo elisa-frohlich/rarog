@@ -15,16 +15,16 @@
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
 int main(int argc, char **argv) {
-    mlir::registerAllPasses();
+  mlir::registerAllPasses();
 
-    rarog::registerMemoryAllocationInstantiationPipeline();
-    rarog::registerShufflingNumberPass();
-    rarog::registerNasbenchLoweringPipeline();
-    rarog::registerInstrumentMallocPipeline();
+  rarog::registerMemoryAllocationInstantiationPipeline();
+  rarog::registerShufflingNumberPass();
+  rarog::registerNasbenchLoweringPipeline();
+  rarog::registerInstrumentMallocPipeline();
 
-    mlir::DialectRegistry registry;
-    mlir::registerAllDialects(registry);
+  mlir::DialectRegistry registry;
+  mlir::registerAllDialects(registry);
 
-    return failed(mlir::MlirOptMain(
-        argc, argv, "Rarog memory visualizer test\n", registry));
+  return failed(mlir::MlirOptMain(argc, argv, "Rarog memory visualizer test\n",
+                                  registry));
 }
