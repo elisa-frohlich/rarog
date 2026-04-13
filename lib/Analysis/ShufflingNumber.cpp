@@ -10,7 +10,122 @@ using namespace func;
 
 namespace rarog {
 
-namespace {
+// LLVM ERROR: TypeID::get<rarog::(anonymous namespace)::ShufflingNumberPass>():
+// Using TypeID on a class with an anonymous namespace requires an explicit
+// TypeID definition. The implicit fallback uses string name, which does not
+// guarantee uniqueness in anonymous contexts. Define an explicit TypeID
+// instantiation for this type using
+// `MLIR_DECLARE_EXPLICIT_TYPE_ID`/`MLIR_DEFINE_EXPLICIT_TYPE_ID` or
+// `MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID`
+// namespace {
+
+using namespace std;
+
+// From utils/topological_ordering_count.cpp
+// modified to have string idx
+struct Vertex {
+  Vertex(string idx) : idx{idx}, in_deg{0}, is_active{true} {}
+
+  bool operator<(const Vertex &u) const { return idx < u.idx; }
+
+  string idx;
+  int in_deg;
+  bool is_active;
+};
+
+struct Graph {
+  Graph() {}
+
+  void add_edge(Vertex *u, Vertex *v) {
+    if (!V.count(u))
+      V.insert(u);
+    if (!V.count(v))
+      V.insert(v);
+
+    if (!adj[u].count(v)) {
+      adj[u].emplace(v);
+      ++v->in_deg;
+    }
+  }
+
+  void add_vertex(Vertex *u) {
+    V.emplace(u);
+    u->is_active = true;
+  }
+
+  void delete_vertex(Vertex *u) {
+    V.erase(u);
+    u->is_active = false;
+  }
+
+  int count(set<Vertex *> sources) {
+    // If G has 0 vertices, it has exactly 1 topological sorting.
+    if (V.size() <= 1)
+      return 1;
+
+    // Otherwise...  Find the source vertices of G. (These are just the
+    // vertices with indegree 0.)
+
+    // If there are none, there are no topological sortings of G.
+    if (sources.empty())
+      return dp[sources] = 0;
+
+    if (dp.count(sources))
+      return dp[sources];
+
+    // For each source vertex s of G, let ts be the number of topological
+    // sortings of the simpler graph Gs obtained by deleting s from G.
+    set<Vertex *> aux = sources;
+
+    // The  number you want is just the sum of the ts values.
+    int res = 0;
+
+    for (Vertex *s : sources) {
+
+      // Remove s from the graph
+      aux.erase(s);
+      delete_vertex(s);
+      // Recalculate what the sources are after removing s
+      for (Vertex *v : adj[s]) {
+        if (v->is_active) {
+          --v->in_deg;
+          if (v->in_deg == 0)
+            aux.emplace(v);
+        }
+      }
+
+      // Recursively calculate topo sort of smaller graph
+      res += count(aux);
+
+      // Restore s in the graph
+      add_vertex(s);
+      // Restore the in_deg of vertices and remove sources pointed by s
+      for (Vertex *v : adj[s]) {
+        if (v->is_active) {
+          if (v->in_deg == 0)
+            aux.erase(v);
+          ++v->in_deg;
+        }
+      }
+      aux.emplace(s);
+    }
+
+    return dp[sources] = res;
+  }
+
+  set<Vertex *> get_sources() {
+    set<Vertex *> sources;
+    for (Vertex *v : V) {
+      if (v->is_active && v->in_deg == 0)
+        sources.emplace(v);
+    }
+    return sources;
+  }
+
+  set<Vertex *> V;
+  map<Vertex *, set<Vertex *>> adj;
+  map<set<Vertex *>, int> dp;
+};
 
 struct ShufflingNumberPass
     : public PassWrapper<ShufflingNumberPass, OperationPass<FuncOp>> {
@@ -18,14 +133,30 @@ struct ShufflingNumberPass
   void runOnOperation() override {
     FuncOp fn = getOperation();
     auto fnName = fn.getName();
+
     // TODO: Will work on any function, after this base case tf2onnx works
     if (fnName != "tf2onnx") {
       return;
     }
 
+    Graph G;
+    map<string, Vertex *> vertices;
+
+    // * Create vertex if does not exist
+    auto get_or_insert = [&](string name) -> Vertex * {
+      if (vertices.count(name) > 0) {
+        return vertices.at(name);
+      } else {
+        // insert a new vertex with this name
+        auto v = new Vertex(name);
+        vertices.insert({name, v});
+        return v;
+      }
+    };
+
     fn.walk([&](Operation *op) -> WalkResult {
       // <results...> = <opName> <operands...>
-      std::vector<std::string> resultNames, operandNames;
+      vector<string> resultNames, operandNames;
 
       auto opName = op->getName();
       for (Value result : op->getResults()) {
@@ -38,18 +169,30 @@ struct ShufflingNumberPass
         operandNames.push_back(valuePortName);
       }
 
+      // Create edge for each operandName -> resultName
       for (auto resultName : resultNames) {
         for (auto operandName : operandNames) {
-          llvm::outs() << operandName << " -> " << resultName << "\n";
+          Vertex *opV = get_or_insert(operandName);
+          Vertex *rsV = get_or_insert(resultName);
 
-          // TODO: Create edges here
+          // G.add_edge between the references to the vertices
+          G.add_edge(opV, rsV);
         }
       }
 
-      llvm::outs() << "\n";
-
       return WalkResult::advance();
     });
+
+    // * All the vertices
+    llvm::outs() << "V = {";
+    for (auto v : G.V) {
+      llvm::outs() << " " << v->idx;
+    }
+    llvm::outs() << " }\n";
+
+    int shufflingNumber = G.count(G.get_sources());
+
+    debug(shufflingNumber) << "\n";
   }
 
 private:
@@ -75,7 +218,7 @@ private:
   }
 };
 
-}; // namespace
+// }; // namespace
 
 std::unique_ptr<mlir::Pass> createShufflingNumberPass() {
   return std::make_unique<ShufflingNumberPass>();
