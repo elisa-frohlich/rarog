@@ -37,42 +37,51 @@ struct ShufflingNumberPass
 
     fn.walk([&](Operation *op) -> WalkResult {
       // <results...> = <opName> <operands...>
+      bool debug = false;
+      std::vector<std::string> resultNames, operandNames;
+
       auto opName = op->getName();
       for (Value result : op->getResults()) {
         auto valuePortName = getValuePortName(result);
-        llvm::outs() << valuePortName << " ";
+
+        if (debug)
+          llvm::outs() << valuePortName << " ";
+
+        resultNames.push_back(valuePortName);
       }
-      llvm::outs() << "= " << opName << " ";
+
+      if (debug)
+        llvm::outs() << "= " << opName << " ";
+
       for (Value operand : op->getOperands()) {
         auto valuePortName = getValuePortName(operand);
-        llvm::outs() << valuePortName << " ";
+
+        if (debug)
+          llvm::outs() << valuePortName << " ";
+
+        operandNames.push_back(valuePortName);
       }
-      llvm::outs() << "\n";
 
-      // TODO: For operations
-      // %c0 = arith.constant 0 : index
-      // ==> (%c0,[])
+      if (debug)
+        llvm::outs() << "\n";
 
-      // %cst = arith.constant 0.000000e+00 : f32
-      // ==> (%cst,[])
+      if (debug)
+        llvm::outs() << "Create these edges:\n";
 
-      // %dim = tensor.dim %arg0, %c0 : tensor<?x32x32x3xf32>
-      // ==> (%dim,[%arg0,%c0])
+      for (auto resultName : resultNames) {
+        for (auto operandName : operandNames) {
+          if (debug)
+            llvm::outs() << operandName << " -> " << resultName << "\n";
 
-      // %0 = tensor.empty(%dim) : tensor<?x3x32x32xf32>
-      // ==> (%0, [%dim])
+          // TODO: Create edges here
+        }
+      }
 
-      // %1 = tensor.empty(%dim) : tensor<?x10xf32>
-      // ==> (%1, [%dim])
-
-      // %2 = linalg.fill ins(%cst : f32) outs(%1 : tensor<?x10xf32>) ->
-      // tensor<?x10xf32>
-      // ==> (%2, [%cst, %1])
+      if (debug)
+        llvm::outs() << "\n";
 
       return WalkResult::advance();
     });
-
-    llvm::outs() << "### END\n";
   }
 
 private:
