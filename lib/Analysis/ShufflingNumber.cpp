@@ -21,6 +21,48 @@ namespace rarog {
 
 using namespace std;
 
+// https://www.geeksforgeeks.org/cpp/how-to-handle-large-numbers-in-cpp/
+// Class to handle large numbers
+class LargeNumber {
+private:
+  // The large number represented as a string
+  string number;
+
+public:
+  LargeNumber() : number("0") {}
+  LargeNumber(const string &num) : number(num) {}
+
+  // Overloaded operator+ to add two LargeNumber objects
+  LargeNumber operator+(const LargeNumber &other) const {
+    string result;
+    int carry = 0;
+    int maxLength = max(number.length(), other.number.length());
+
+    for (int i = 0; i < maxLength || carry; ++i) {
+      int digit1 =
+          i < number.length() ? number[number.length() - 1 - i] - '0' : 0;
+      int digit2 = i < other.number.length()
+                       ? other.number[other.number.length() - 1 - i] - '0'
+                       : 0;
+
+      int sum = digit1 + digit2 + carry;
+      result.push_back(sum % 10 + '0');
+      carry = sum / 10;
+    }
+
+    // Since the result is reversed, reverse it back to
+    // get the correct number
+    reverse(result.begin(), result.end());
+    return LargeNumber(result);
+  }
+
+  // Overloaded operator<< to print a LargeNumber object
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const LargeNumber &num) {
+    return os << num.number;
+  }
+};
+
 // From utils/topological_ordering_count.cpp
 // modified to have string idx
 struct Vertex {
@@ -58,17 +100,17 @@ struct Graph {
     u->is_active = false;
   }
 
-  int count(set<Vertex *> sources) {
+  LargeNumber count(set<Vertex *> sources) {
     // If G has 0 vertices, it has exactly 1 topological sorting.
     if (V.size() <= 1)
-      return 1;
+      return LargeNumber("1");
 
     // Otherwise...  Find the source vertices of G. (These are just the
     // vertices with indegree 0.)
 
     // If there are none, there are no topological sortings of G.
     if (sources.empty())
-      return dp[sources] = 0;
+      return dp[sources] = LargeNumber("0");
 
     if (dp.count(sources))
       return dp[sources];
@@ -78,7 +120,7 @@ struct Graph {
     set<Vertex *> aux = sources;
 
     // The  number you want is just the sum of the ts values.
-    int res = 0;
+    LargeNumber res = LargeNumber("0");
 
     for (Vertex *s : sources) {
 
@@ -95,7 +137,8 @@ struct Graph {
       }
 
       // Recursively calculate topo sort of smaller graph
-      res += count(aux);
+      // * Possibly stop on a BIG number
+      res = res + count(aux);
 
       // Restore s in the graph
       add_vertex(s);
@@ -124,7 +167,7 @@ struct Graph {
 
   set<Vertex *> V;
   map<Vertex *, set<Vertex *>> adj;
-  map<set<Vertex *>, int> dp;
+  map<set<Vertex *>, LargeNumber> dp;
 };
 
 struct ShufflingNumberPass
@@ -190,7 +233,7 @@ struct ShufflingNumberPass
     }
     llvm::outs() << " }\n";
 
-    int shufflingNumber = G.count(G.get_sources());
+    LargeNumber shufflingNumber = G.count(G.get_sources());
 
     debug(shufflingNumber) << "\n";
   }
