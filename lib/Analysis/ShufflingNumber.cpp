@@ -18,6 +18,9 @@ struct ShufflingNumberPass
   void runOnOperation() override {
     FuncOp fn = getOperation();
     auto fnName = fn.getName();
+    // https://github.com/llvm/llvm-project/blob/main/mlir/test/lib/IR/TestPrintNesting.cpp
+    // https://github.com/llvm/llvm-project/issues/56214
+    // printAsOperand
 
     // TODO: Will work on any function, after this base case tf2onnx works
     if (fnName != "tf2onnx") {
@@ -39,37 +42,8 @@ struct ShufflingNumberPass
       // Looks useful...
       // mlir::acc::getVariableName(nullptr);
 
-      // op->getOpResult();
-      for (Value rs : op->getOpResults()) {
-        auto name = mlir::acc::getVariableName(rs);
-        debug(name);
-      }
-
-      // ? Goal: For each operation, get the identifier that it defined
-      // i.e. :
-      // %c0 = arith.constant 0 : index
-      // defines de identifier %c0
-
-      /*
-      for (auto operand : operands) {
-          auto uses = operand.getNumUses();
-          llvm::outs() << uses << " ";
-
-          // TODO: Map out which VARIABLES are used, WHEN they are
-          // defined.
-          //
-      https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
-      }
-      llvm::outs() << "]\n";
-
-      for (auto result : op->getResults()) {
-          // result.get
-          for (auto user : result.getUsers()) {
-              user->getName();
-          }
-          auto owner = result.getOwner();
-      }
-      */
+      // https://discourse.llvm.org/t/get-the-ssa-name-of-value/60025/10
+      // https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
 
       return WalkResult::advance();
     });
@@ -83,5 +57,4 @@ struct ShufflingNumberPass
 std::unique_ptr<mlir::Pass> createShufflingNumberPass() {
   return std::make_unique<ShufflingNumberPass>();
 }
-
 }; // namespace rarog
