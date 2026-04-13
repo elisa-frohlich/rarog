@@ -18,37 +18,48 @@ struct ShufflingNumberPass
   void runOnOperation() override {
     FuncOp fn = getOperation();
     auto fnName = fn.getName();
-    // https://github.com/llvm/llvm-project/blob/main/mlir/test/lib/IR/TestPrintNesting.cpp
-    // https://github.com/llvm/llvm-project/issues/56214
-    // printAsOperand
-
     // TODO: Will work on any function, after this base case tf2onnx works
     if (fnName != "tf2onnx") {
       return;
     }
 
+    // https://github.com/llvm/llvm-project/blob/main/mlir/test/lib/IR/TestPrintNesting.cpp
+    // https://github.com/llvm/llvm-project/issues/56214
+    // printAsOperand
+    // https://github.com/llvm/llvm-project/blob/main/mlir/docs/LangRef.md#identifiers-and-keywords
+    //
+    // Looks useful...
+    // mlir::acc::getVariableName(nullptr);
+    // https://discourse.llvm.org/t/get-the-ssa-name-of-value/60025/10
+    // https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
+
     llvm::outs() << "### Shuffling Number of " << fnName << "\n";
 
-    int op_count = 0;
-
     fn.walk([&](Operation *op) -> WalkResult {
-      op_count++;
-      std::string opName = op->getName().getStringRef().str();
-      auto operands = op->getOperands();
-      llvm::outs() << opName << " {" << operands.size() << "}[ ";
+      // TODO: For operations
+      // %c0 = arith.constant 0 : index
+      // ==> (%c0,[])
 
-      // https://github.com/llvm/llvm-project/blob/main/mlir/docs/LangRef.md#identifiers-and-keywords
+      // %cst = arith.constant 0.000000e+00 : f32
+      // ==> (%cst,[])
 
-      // Looks useful...
-      // mlir::acc::getVariableName(nullptr);
+      // %dim = tensor.dim %arg0, %c0 : tensor<?x32x32x3xf32>
+      // ==> (%dim,[%arg0,%c0])
 
-      // https://discourse.llvm.org/t/get-the-ssa-name-of-value/60025/10
-      // https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
+      // %0 = tensor.empty(%dim) : tensor<?x3x32x32xf32>
+      // ==> (%0, [%dim])
+
+      // %1 = tensor.empty(%dim) : tensor<?x10xf32>
+      // ==> (%1, [%dim])
+
+      // %2 = linalg.fill ins(%cst : f32) outs(%1 : tensor<?x10xf32>) ->
+      // tensor<?x10xf32>
+      // ==> (%2, [%cst, %1])
 
       return WalkResult::advance();
     });
 
-    llvm::outs() << "There were " << op_count << " operands\n";
+    llvm::outs() << "### END\n";
   }
 };
 
