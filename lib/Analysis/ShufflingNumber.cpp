@@ -23,62 +23,30 @@ struct ShufflingNumberPass
       return;
     }
 
-    // https://github.com/llvm/llvm-project/blob/main/mlir/test/lib/IR/TestPrintNesting.cpp
-    // https://github.com/llvm/llvm-project/issues/56214
-    // printAsOperand
-    // https://github.com/llvm/llvm-project/blob/main/mlir/docs/LangRef.md#identifiers-and-keywords
-    //
-    // Looks useful...
-    // mlir::acc::getVariableName(nullptr);
-    // https://discourse.llvm.org/t/get-the-ssa-name-of-value/60025/10
-    // https://mlir.llvm.org/docs/Tutorials/UnderstandingTheIRStructure/#traversing-the-def-use-chains
-
-    llvm::outs() << "### Shuffling Number of " << fnName << "\n";
-
     fn.walk([&](Operation *op) -> WalkResult {
       // <results...> = <opName> <operands...>
-      bool debug = false;
       std::vector<std::string> resultNames, operandNames;
 
       auto opName = op->getName();
       for (Value result : op->getResults()) {
         auto valuePortName = getValuePortName(result);
-
-        if (debug)
-          llvm::outs() << valuePortName << " ";
-
         resultNames.push_back(valuePortName);
       }
 
-      if (debug)
-        llvm::outs() << "= " << opName << " ";
-
       for (Value operand : op->getOperands()) {
         auto valuePortName = getValuePortName(operand);
-
-        if (debug)
-          llvm::outs() << valuePortName << " ";
-
         operandNames.push_back(valuePortName);
       }
 
-      if (debug)
-        llvm::outs() << "\n";
-
-      if (debug)
-        llvm::outs() << "Create these edges:\n";
-
       for (auto resultName : resultNames) {
         for (auto operandName : operandNames) {
-          if (debug)
-            llvm::outs() << operandName << " -> " << resultName << "\n";
+          llvm::outs() << operandName << " -> " << resultName << "\n";
 
           // TODO: Create edges here
         }
       }
 
-      if (debug)
-        llvm::outs() << "\n";
+      llvm::outs() << "\n";
 
       return WalkResult::advance();
     });
