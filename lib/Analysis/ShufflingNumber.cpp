@@ -10,15 +10,6 @@ using namespace func;
 
 namespace rarog {
 
-// LLVM ERROR: TypeID::get<rarog::(anonymous namespace)::ShufflingNumberPass>():
-// Using TypeID on a class with an anonymous namespace requires an explicit
-// TypeID definition. The implicit fallback uses string name, which does not
-// guarantee uniqueness in anonymous contexts. Define an explicit TypeID
-// instantiation for this type using
-// `MLIR_DECLARE_EXPLICIT_TYPE_ID`/`MLIR_DEFINE_EXPLICIT_TYPE_ID` or
-// `MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID`
-// namespace {
-
 using namespace std;
 
 // https://www.geeksforgeeks.org/cpp/how-to-handle-large-numbers-in-cpp/
@@ -278,8 +269,6 @@ private:
     return str;
   }
 };
-
-// }; // namespace
 
 std::unique_ptr<mlir::Pass> createShufflingNumberPass() {
   return std::make_unique<ShufflingNumberPass>();
