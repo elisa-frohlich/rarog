@@ -253,25 +253,13 @@ struct ShufflingNumberPass
   }
 
 private:
-  // https://github.com/llvm/llvm-project/blob/42804379944cd0b221f9557ce219d4dc77a6055a/mlir/lib/Transforms/ViewOpGraph.cpp#L45-L50
-  /// Return all values printed onto a stream as a string.
-  static std::string strFromOs(function_ref<void(raw_ostream &)> func) {
-    std::string buf;
-    llvm::raw_string_ostream os(buf);
-    func(os);
-    return buf;
-  }
-
-  // https://github.com/llvm/llvm-project/blob/fbd0bcf55447c94dfa27bafb096f32e9c083f7ee/mlir/lib/Transforms/ViewOpGraph.cpp#L293-L302
+  // Obtained from pass --view-op-graph
+  // https://github.com/llvm/llvm-project/blob/main/mlir/lib/Transforms/ViewOpGraph.cpp#L293
   std::string getValuePortName(Value operand) {
-    // Print value as an operand and omit the leading '%' character.
-    auto str = strFromOs([&](raw_ostream &os) {
-      operand.printAsOperand(os, OpPrintingFlags());
-    });
-    // ? Replace % and # with _
-    // llvm::replace(str, '%', '_');
-    // llvm::replace(str, '#', '_');
-    return str;
+    string buf;
+    llvm::raw_string_ostream os(buf);
+    operand.printAsOperand(os, OpPrintingFlags());
+    return buf;
   }
 };
 
