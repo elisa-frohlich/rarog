@@ -188,34 +188,39 @@ struct ShufflingNumberPass
       }
     };
 
-    fn.walk([&](Operation *op) -> WalkResult {
-      // <results...> = <opName> <operands...>
-      vector<string> resultNames, operandNames;
+    // Debug with
+    // https://www.techiedelight.com/find-all-possible-topological-orderings-of-dag/
 
-      auto opName = op->getName();
-      for (Value result : op->getResults()) {
-        auto valuePortName = getValuePortName(result);
-        resultNames.push_back(valuePortName);
-      }
+    for (Block &blk : fn.getBlocks()) {
+      for (Operation &op : blk.getOperations()) {
+        // <results...> = <opName> <operands...>
+        vector<string> resultNames, operandNames;
 
-      for (Value operand : op->getOperands()) {
-        auto valuePortName = getValuePortName(operand);
-        operandNames.push_back(valuePortName);
-      }
+        auto opName = op.getName();
+        for (Value result : op.getResults()) {
+          auto valuePortName = getValuePortName(result);
+          resultNames.push_back(valuePortName);
+        }
 
-      // Create edge for each operandName -> resultName
-      for (auto resultName : resultNames) {
-        for (auto operandName : operandNames) {
-          Vertex *opV = get_or_insert(operandName);
-          Vertex *rsV = get_or_insert(resultName);
+        for (Value operand : op.getOperands()) {
+          auto valuePortName = getValuePortName(operand);
+          operandNames.push_back(valuePortName);
+        }
 
-          // G.add_edge between the references to the vertices
-          G.add_edge(opV, rsV);
+        // Create edge for each operandName -> resultName
+        for (auto resultName : resultNames) {
+          for (auto operandName : operandNames) {
+            Vertex *opV = get_or_insert(operandName);
+            Vertex *rsV = get_or_insert(resultName);
+
+            // G.add_edge between the references to the vertices
+            llvm::outs() << "Create edge " << operandName << " -> "
+                         << resultName << "\n";
+            G.add_edge(opV, rsV);
+          }
         }
       }
-
-      return WalkResult::advance();
-    });
+    }
 
     // * First step is to remove the sources from the graph, as we don't care
     //   about shuffling between the inputs and constants
