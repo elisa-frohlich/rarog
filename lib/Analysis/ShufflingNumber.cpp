@@ -226,12 +226,30 @@ struct ShufflingNumberPass
       return WalkResult::advance();
     });
 
+    // * First step is to remove the sources from the graph, as we don't care
+    //   about shuffling between the inputs and constants
+    llvm::outs() << "Removing sources: ";
+    for (auto src : G.get_sources()) {
+      llvm::outs() << src->idx << " ";
+      G.delete_vertex(src);
+      for (Vertex *v : G.adj[src]) {
+        v->in_deg--;
+      }
+    }
+    llvm::outs() << "\n";
+
     // * All the vertices
     llvm::outs() << "V = {";
     for (auto v : G.V) {
       llvm::outs() << " " << v->idx;
     }
     llvm::outs() << " }\n";
+
+    llvm::outs() << "Current sources: ";
+    for (auto src : G.get_sources()) {
+      llvm::outs() << src->idx << " ";
+    }
+    llvm::outs() << "\n";
 
     LargeNumber shufflingNumber = G.count(G.get_sources());
 
