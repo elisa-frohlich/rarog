@@ -24,6 +24,11 @@ fi
 LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
 LOWERED_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_lowered.mlir"
 
+if ! [ -f $LINALG_MODEL ]
+then
+    bash ${RAROG_ROOT}/scripts/create_linalg.sh
+fi
+
 # Apply lowering pipeline
 $RAROG_OPT_PATH \
     --nasbench-lowering-pipeline \

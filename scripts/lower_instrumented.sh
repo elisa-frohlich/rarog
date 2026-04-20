@@ -23,7 +23,12 @@ fi
 LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
 INSTRUMENTED_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_instrumented.mlir"
 
+if ! [ -f $LINALG_MODEL ]
+then
+    bash ${RAROG_ROOT}/scripts/create_linalg.sh
+fi
+
 $RAROG_OPT_PATH \
-    --nasbench-lowering-pipeline \
+    --nasbench-lowering-pipeline="enable-reorder-frees" \
     --instrument-malloc \
     $LINALG_MODEL -o $INSTRUMENTED_MODEL

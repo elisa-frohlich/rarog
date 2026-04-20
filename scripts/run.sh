@@ -15,7 +15,12 @@ MODEL_NAME="${MODEL_NAME:-model_1}"
 
 LOWERED_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_lowered.mlir"
 
-time $MLIR_RUNNER \
+if ! [ -f $LOWERED_MODEL ]
+then
+    bash "${RAROG_ROOT}/scripts/lower.sh" &> /dev/null
+fi
+
+/usr/bin/time --format="\ntime elapsed: %es\nmax memory used: %Mkb\nCPU used: %P" $MLIR_RUNNER \
     $LOWERED_MODEL \
     --entry-point-result=void \
     --shared-libs=$MLIR_UTILS \
