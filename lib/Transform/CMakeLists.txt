@@ -3,6 +3,7 @@ add_mlir_library(RarogTransform
     AddNasbenchMainFunction.cpp
     InstrumentMalloc.cpp
     ReorderFrees.cpp
+    StaticAllocation.cpp
 
     LINK_LIBS PUBLIC
       MLIRIR

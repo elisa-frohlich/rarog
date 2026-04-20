@@ -2,6 +2,7 @@
 #include "AddNasbenchMainFunction.h"
 #include "InstrumentMalloc.h"
 #include "ReorderFrees.h"
+#include "StaticAllocation.h"
 
 #include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
@@ -25,6 +26,15 @@ struct NasbenchLoweringPipelineOptions : public PassPipelineOptions<NasbenchLowe
   Option<bool> enableReorderFrees{*this, "enable-reorder-frees",
                                   llvm::cl::desc("Enable reorder-frees pass"),
                                   llvm::cl::init(false)};
+};
+
+struct StaticAllocationPipelineOptions : public PassPipelineOptions<StaticAllocationPipelineOptions> {
+  Option<std::string> resultFilename{
+    *this,
+    "result-file",
+    llvm::cl::desc("<Malloc instrumentation result file>"),
+    llvm::cl::Required
+  };
 };
 
 namespace {
@@ -85,8 +95,32 @@ void addInstrumentMallocPipeline(OpPassManager &pm) {
   pm.addPass(rarog::createInstrumentMallocPass());
 }
 
+void addStaticAllocationPipeline(OpPassManager &pm, const StaticAllocationPipelineOptions &options) {
+  pm.addPass(rarog::createStaticAllocationPass(options.resultFilename));
+
+  // --canonicalize
+  pm.addPass(createCanonicalizerPass());
+}
+
 void addReorderFreesPipeline(OpPassManager &pm) {
+  // --one-shot-bufferize="bufferize-function-boundaries"
+  bufferization::OneShotBufferizePassOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  pm.addPass(
+      bufferization::createOneShotBufferizePass(bufferizationOptions)
+  );
+
+  // --buffer-deallocation-pipeline
+  // funcPM.addPass(bufferization::createBufferLoopHoistingPass());
+  bufferization::BufferDeallocationPipelineOptions bufferDeallocOptions;
+  mlir::bufferization::buildBufferDeallocationPipeline(pm, bufferDeallocOptions);
+
+  // Hoist memref.realloc instructions close to last use of deallocated buffer
   pm.addPass(rarog::createReorderFreesPass());
+
+  pm.addPass(createCanonicalizerPass());
+
+  pm.addPass(createCSEPass());
 }
 
 } // namespace
@@ -117,22 +151,12 @@ void registerReorderFreesPipeline() {
   );
 }
 
+void registerStaticAllocationPipeline() {
+  PassPipelineRegistration<StaticAllocationPipelineOptions>(
+    "static-allocation",
+    "Add static memory allocation to ML models",
+    addStaticAllocationPipeline
+  );
+}
+
 } // namespace rarog
-
-// We want to create a pass for deallocating buffers on ML models. This
-// deallocation will insert memref.dealloc instructions after the last use of a
-// buffer and remove the memref.dealloc instructions inserted by the
-// buffer-deallocation-pipeline pass
-
-// Notice: a buffer can be referenced by instructions like memref.view,
-// memref.subview, memref.expand_shape, memref.collapse_shape and so on.
-
-// Deepseek suggested using the BufferViewFlowAnalysis MLIR pass, but I need to
-// verify if it inspects every instruction. Otherwise, it should be easy to
-// implement a BFS that starts with the uses of the allocated buffer, and each
-// time it finds one of the instructions above, it will add its uses to the
-// queue, keeping track of the last used instruction
-
-// After getting the last used instruction of the buffer and its aliases, we
-// insert a memref.dealloc instruction after the last use. Then the pipeline
-// runs canonicalization and CSE
