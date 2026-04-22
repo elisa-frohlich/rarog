@@ -60,6 +60,6 @@ LINALG_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
 
 # Analyize with our tool
 $RAROG_OPT_PATH \
-    --shuffling-number-pass \
+    --shuffling-number-pass="verbose=${VERBOSE}" \
     $LINALG_MODEL \
     -o /dev/null # Analysis: output is unchanged

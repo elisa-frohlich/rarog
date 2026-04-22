@@ -5,7 +5,7 @@
 
 namespace rarog {
 
-std::unique_ptr<mlir::Pass> createShufflingNumberPass();
+std::unique_ptr<mlir::Pass> createShufflingNumberPass(bool verbose);
 
 }
 

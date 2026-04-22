@@ -4,7 +4,7 @@
 namespace rarog {
 
 void registerMemoryAllocationInstantiationPipeline();
-void registerShufflingNumberPass();
+void registerShufflingNumberPipeline();
 
 } // namespace rarog
 

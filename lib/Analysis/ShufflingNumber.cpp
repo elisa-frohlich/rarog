@@ -177,13 +177,14 @@ struct Graph {
 struct ShufflingNumberPass
     : public PassWrapper<ShufflingNumberPass, OperationPass<FuncOp>> {
 
+public:
+  ShufflingNumberPass(bool verbose) : VERBOSE(verbose) {}
+
   void runOnOperation() override {
     FuncOp fn = getOperation();
     auto fnName = fn.getName();
 
-    bool VERBOSE_MODE = true; // TODO: Get as flag
-
-    if (VERBOSE_MODE)
+    if (VERBOSE)
       llvm::outs() << "Calculating shuffling number for '" << fnName << "'\n";
 
     Graph G;
@@ -238,21 +239,21 @@ struct ShufflingNumberPass
 
     // * First step is to remove the sources from the graph, as we don't care
     //   about shuffling between the inputs and constants
-    if (VERBOSE_MODE)
+    if (VERBOSE)
       llvm::outs() << "Removing sources: ";
     for (auto src : G.get_sources()) {
-      if (VERBOSE_MODE)
+      if (VERBOSE)
         llvm::outs() << src->idx << " ";
       G.delete_vertex(src);
       for (Vertex *v : G.adj[src]) {
         v->in_deg--;
       }
     }
-    if (VERBOSE_MODE)
+    if (VERBOSE)
       llvm::outs() << "\n";
 
     // *All the vertices
-    if (VERBOSE_MODE) {
+    if (VERBOSE) {
       llvm::outs() << "V = {";
       for (auto v : G.V) {
         llvm::outs() << " " << v->idx;
@@ -276,6 +277,8 @@ struct ShufflingNumberPass
   }
 
 private:
+  bool VERBOSE;
+
   // Obtained from pass --view-op-graph
   // https://github.com/llvm/llvm-project/blob/main/mlir/lib/Transforms/ViewOpGraph.cpp#L293
   std::string getValuePortName(Value operand) {
@@ -286,7 +289,7 @@ private:
   }
 };
 
-std::unique_ptr<mlir::Pass> createShufflingNumberPass() {
-  return std::make_unique<ShufflingNumberPass>();
+std::unique_ptr<mlir::Pass> createShufflingNumberPass(bool verbose) {
+  return std::make_unique<ShufflingNumberPass>(verbose);
 }
 }; // namespace rarog

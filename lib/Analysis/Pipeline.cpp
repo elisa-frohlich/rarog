@@ -20,6 +20,13 @@
 
 using namespace mlir;
 
+struct ShufflingNumberPipelineOptions
+    : public PassPipelineOptions<ShufflingNumberPipelineOptions> {
+  Option<bool> verbose{*this, "verbose",
+                       llvm::cl::desc("<Enable verbose logging>"),
+                       llvm::cl::Optional};
+};
+
 namespace {
 
 void addMemoryAllocationInstantiationPipeline(OpPassManager &pm) {
@@ -33,8 +40,10 @@ void addMemoryAllocationInstantiationPipeline(OpPassManager &pm) {
   pm.addPass(rarog::createMemoryAllocationInstantiationPass());
 }
 
-void addShufflingNumberPass(OpPassManager &pm) {
-  pm.addPass(rarog::createShufflingNumberPass());
+void addShufflingNumberPipeline(OpPassManager &pm,
+                                const ShufflingNumberPipelineOptions &options) {
+  // --shuffling-number-pass="verbose"
+  pm.addPass(rarog::createShufflingNumberPass(options.verbose));
 }
 
 } // namespace
@@ -47,10 +56,10 @@ void registerMemoryAllocationInstantiationPipeline() {
                              addMemoryAllocationInstantiationPipeline);
 }
 
-void registerShufflingNumberPass() {
-  PassPipelineRegistration<>("shuffling-number-pass",
-                             "Calculate the shuffling number of a function",
-                             addShufflingNumberPass);
+void registerShufflingNumberPipeline() {
+  PassPipelineRegistration<ShufflingNumberPipelineOptions>(
+      "shuffling-number-pass", "Calculate the shuffling number of a function",
+      addShufflingNumberPipeline);
 }
 
 } // namespace rarog
