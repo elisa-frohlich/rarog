@@ -183,10 +183,8 @@ struct ShufflingNumberPass
 
     bool VERBOSE_MODE = true; // TODO: Get as flag
 
-    // TODO: Will work on any function, after this base case tf2onnx works
-    if (fnName != "tf2onnx") {
-      return;
-    }
+    if (VERBOSE_MODE)
+      llvm::outs() << "Calculating shuffling number for '" << fnName << "'\n";
 
     Graph G;
     map<string, Vertex *> vertices;
