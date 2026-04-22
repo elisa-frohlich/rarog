@@ -47,6 +47,19 @@ public:
     return LargeNumber(result);
   }
 
+  // Converts this to long long, returns 2^27 if it's too big.
+  long long toLongLong() {
+    long long ans = 0;
+    long long max_ll = 1LL << 27;
+    for (char ch : this->number) {
+      ans *= 10LL;
+      ans += ch - '0';
+      if (ans > max_ll)
+        return max_ll;
+    }
+    return ans;
+  }
+
   // Overloaded operator<< to print a LargeNumber object
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const LargeNumber &num) {
@@ -168,6 +181,8 @@ struct ShufflingNumberPass
     FuncOp fn = getOperation();
     auto fnName = fn.getName();
 
+    bool VERBOSE_MODE = true; // TODO: Get as flag
+
     // TODO: Will work on any function, after this base case tf2onnx works
     if (fnName != "tf2onnx") {
       return;
@@ -191,10 +206,13 @@ struct ShufflingNumberPass
     // Debug with
     // https://www.techiedelight.com/find-all-possible-topological-orderings-of-dag/
 
+    int numInstructions = 0;
+
     for (Block &blk : fn.getBlocks()) {
       for (Operation &op : blk.getOperations()) {
         // <results...> = <opName> <operands...>
         vector<string> resultNames, operandNames;
+        numInstructions++;
 
         auto opName = op.getName();
         for (Value result : op.getResults()) {
@@ -214,8 +232,9 @@ struct ShufflingNumberPass
             Vertex *rsV = get_or_insert(resultName);
 
             // G.add_edge between the references to the vertices
-            llvm::outs() << "Create edge " << operandName << " -> "
-                         << resultName << "\n";
+            if (VERBOSE_MODE)
+              llvm::outs() << "Create edge " << operandName << " -> "
+                           << resultName << "\n";
             G.add_edge(opV, rsV);
           }
         }
@@ -224,32 +243,41 @@ struct ShufflingNumberPass
 
     // * First step is to remove the sources from the graph, as we don't care
     //   about shuffling between the inputs and constants
-    llvm::outs() << "Removing sources: ";
+    if (VERBOSE_MODE)
+      llvm::outs() << "Removing sources: ";
     for (auto src : G.get_sources()) {
-      llvm::outs() << src->idx << " ";
+      if (VERBOSE_MODE)
+        llvm::outs() << src->idx << " ";
       G.delete_vertex(src);
       for (Vertex *v : G.adj[src]) {
         v->in_deg--;
       }
     }
-    llvm::outs() << "\n";
+    if (VERBOSE_MODE)
+      llvm::outs() << "\n";
 
-    // * All the vertices
-    llvm::outs() << "V = {";
-    for (auto v : G.V) {
-      llvm::outs() << " " << v->idx;
+    // *All the vertices
+    if (VERBOSE_MODE) {
+      llvm::outs() << "V = {";
+      for (auto v : G.V) {
+        llvm::outs() << " " << v->idx;
+      }
+      llvm::outs() << " }\n";
+
+      llvm::outs() << "Current sources: ";
+      for (auto src : G.get_sources()) {
+        llvm::outs() << src->idx << " ";
+      }
+      llvm::outs() << "\n";
     }
-    llvm::outs() << " }\n";
 
-    llvm::outs() << "Current sources: ";
-    for (auto src : G.get_sources()) {
-      llvm::outs() << src->idx << " ";
-    }
-    llvm::outs() << "\n";
+    auto srcs = G.get_sources();
+    int numVars = G.V.size();
+    LargeNumber shufflingNumber = G.count(srcs);
 
-    LargeNumber shufflingNumber = G.count(G.get_sources());
-
-    debug(shufflingNumber) << "\n";
+    // Number of Variables, Number of Instructions, Shuffling Number
+    llvm::outs() << numVars << "," << numInstructions << ","
+                 << shufflingNumber.toLongLong() << "\n";
   }
 
 private:
