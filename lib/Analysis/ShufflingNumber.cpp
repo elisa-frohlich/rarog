@@ -230,9 +230,6 @@ struct ShufflingNumberPass
             Vertex *rsV = get_or_insert(resultName);
 
             // G.add_edge between the references to the vertices
-            if (VERBOSE_MODE)
-              llvm::outs() << "Create edge " << operandName << " -> "
-                           << resultName << "\n";
             G.add_edge(opV, rsV);
           }
         }
