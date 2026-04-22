@@ -57,10 +57,9 @@ print_blue "Calculating Shuffing Number for model_$MODEL_IDX"
 mkdir -p tmp
 
 BUFFER_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_linalg.mlir"
-# ? This is just an analysis, so output is unchanged
-OUTPUT_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}_shuffling.mlir"
 
 # Analyize with our tool
 $RAROG_OPT_PATH \
     --shuffling-number-pass \
-    $BUFFER_MODEL -o $OUTPUT_MODEL
+    $BUFFER_MODEL \
+    -o /dev/null # Analysis: output is unchanged
