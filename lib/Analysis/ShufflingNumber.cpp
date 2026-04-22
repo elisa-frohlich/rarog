@@ -27,14 +27,12 @@ public:
   LargeNumber operator+(const LargeNumber &other) const {
     string result;
     int carry = 0;
-    int maxLength = max(number.length(), other.number.length());
+    int thisLen = this->number.length(), otherLen = other.number.length();
+    int maxLen = max(thisLen, otherLen);
 
-    for (int i = 0; i < maxLength || carry; ++i) {
-      int digit1 =
-          i < number.length() ? number[number.length() - 1 - i] - '0' : 0;
-      int digit2 = i < other.number.length()
-                       ? other.number[other.number.length() - 1 - i] - '0'
-                       : 0;
+    for (int i = 0; i < maxLen || carry; ++i) {
+      int digit1 = i < thisLen ? this->number[thisLen - 1 - i] - '0' : 0;
+      int digit2 = i < otherLen ? other.number[otherLen - 1 - i] - '0' : 0;
 
       int sum = digit1 + digit2 + carry;
       result.push_back(sum % 10 + '0');
@@ -45,6 +43,12 @@ public:
     // get the correct number
     reverse(result.begin(), result.end());
     return LargeNumber(result);
+  }
+
+  // Returns whether number is much larger than 2^27 (billions or more)
+  bool isOutOfBounds() {
+    // LargeNumber("134217728") ==  2^27
+    return this->number.length() > 9;
   }
 
   // Converts this to long long, returns 2^27 if it's too big.
@@ -155,6 +159,11 @@ struct Graph {
         }
       }
       aux.emplace(s);
+
+      // If it is already too big, exit early
+      if (res.isOutOfBounds()) {
+        return dp[sources] = outOfBounds;
+      }
     }
 
     return dp[sources] = res;
@@ -172,6 +181,8 @@ struct Graph {
   set<Vertex *> V;
   map<Vertex *, set<Vertex *>> adj;
   map<set<Vertex *>, LargeNumber> dp;
+  static inline const LargeNumber outOfBounds =
+      LargeNumber("134217728"); //  2^27
 };
 
 struct ShufflingNumberPass
