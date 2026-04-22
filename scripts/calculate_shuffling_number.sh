@@ -40,7 +40,7 @@ print_red() {
     $VERBOSE && echo -e "\e[0;31m ! ${1}\e[0m"
 }
 
-if ! [ -f $RAROG_OPT_PATH ] || [ $FRESH ]; then
+if [[ ! -f $RAROG_OPT_PATH || $FRESH == true ]]; then
     print_blue "Compiling rarog-opt..."
     cd $RAROG_ROOT
     cmake -B build . --fresh
