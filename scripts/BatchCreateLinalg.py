@@ -75,7 +75,7 @@ def main():
 
     with multiprocessing.Pool(processes=num_workers) as pool:
         for success in tqdm(
-            pool.imap_unordered(create_linalg_script, tasks, chunksize=5),
+            pool.imap_unordered(create_linalg_script, tasks, chunksize=50),
             total=len(tasks),
             unit="model",
         ):
@@ -85,7 +85,7 @@ def main():
     if errors:
         print(f"\nFinished with {errors} errors.")
     else:
-        print("\nFinished successfully with 0 errors. and parafalsdf")
+        print("\nFinished successfully with 0 errors.")
 
 
 if __name__ == "__main__":
