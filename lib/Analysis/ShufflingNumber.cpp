@@ -11,65 +11,7 @@ using namespace func;
 namespace rarog {
 
 using namespace std;
-
-// https://www.geeksforgeeks.org/cpp/how-to-handle-large-numbers-in-cpp/
-// Class to handle large numbers
-class LargeNumber {
-private:
-  // The large number represented as a string
-  string number;
-
-public:
-  LargeNumber() : number("0") {}
-  LargeNumber(const string &num) : number(num) {}
-
-  // Overloaded operator+ to add two LargeNumber objects
-  LargeNumber operator+(const LargeNumber &other) const {
-    string result;
-    int carry = 0;
-    int thisLen = this->number.length(), otherLen = other.number.length();
-    int maxLen = max(thisLen, otherLen);
-
-    for (int i = 0; i < maxLen || carry; ++i) {
-      int digit1 = i < thisLen ? this->number[thisLen - 1 - i] - '0' : 0;
-      int digit2 = i < otherLen ? other.number[otherLen - 1 - i] - '0' : 0;
-
-      int sum = digit1 + digit2 + carry;
-      result.push_back(sum % 10 + '0');
-      carry = sum / 10;
-    }
-
-    // Since the result is reversed, reverse it back to
-    // get the correct number
-    reverse(result.begin(), result.end());
-    return LargeNumber(result);
-  }
-
-  // Returns whether number is much larger than 2^27 (billions or more)
-  bool isOutOfBounds() {
-    // LargeNumber("134217728") ==  2^27
-    return this->number.length() > 9;
-  }
-
-  // Converts this to long long, returns 2^27 if it's too big.
-  long long toLongLong() {
-    long long ans = 0;
-    long long max_ll = 1LL << 27;
-    for (char ch : this->number) {
-      ans *= 10LL;
-      ans += ch - '0';
-      if (ans > max_ll)
-        return max_ll;
-    }
-    return ans;
-  }
-
-  // Overloaded operator<< to print a LargeNumber object
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const LargeNumber &num) {
-    return os << num.number;
-  }
-};
+typedef unsigned long long ull;
 
 // From utils/topological_ordering_count.cpp
 // modified to have string idx
@@ -108,17 +50,17 @@ struct Graph {
     u->is_active = false;
   }
 
-  LargeNumber count(set<Vertex *> sources) {
+  ull count(set<Vertex *> sources) {
     // If G has 0 vertices, it has exactly 1 topological sorting.
     if (V.size() <= 1)
-      return LargeNumber("1");
+      return 1ULL;
 
     // Otherwise...  Find the source vertices of G. (These are just the
     // vertices with indegree 0.)
 
     // If there are none, there are no topological sortings of G.
     if (sources.empty())
-      return dp[sources] = LargeNumber("0");
+      return dp[sources] = 0ULL;
 
     if (dp.count(sources))
       return dp[sources];
@@ -128,7 +70,7 @@ struct Graph {
     set<Vertex *> aux = sources;
 
     // The  number you want is just the sum of the ts values.
-    LargeNumber res = LargeNumber("0");
+    ull res = 0ULL;
 
     for (Vertex *s : sources) {
 
@@ -161,7 +103,7 @@ struct Graph {
       aux.emplace(s);
 
       // If it is already too big, exit early
-      if (res.isOutOfBounds()) {
+      if (res >= outOfBounds) {
         return dp[sources] = outOfBounds;
       }
     }
@@ -180,9 +122,8 @@ struct Graph {
 
   set<Vertex *> V;
   map<Vertex *, set<Vertex *>> adj;
-  map<set<Vertex *>, LargeNumber> dp;
-  static inline const LargeNumber outOfBounds =
-      LargeNumber("134217728"); //  2^27
+  map<set<Vertex *>, ull> dp;
+  static inline const ull outOfBounds = 1ULL << 27; //  2^27
 };
 
 struct ShufflingNumberPass
@@ -280,11 +221,11 @@ public:
 
     auto srcs = G.get_sources();
     int numVars = G.V.size();
-    LargeNumber shufflingNumber = G.count(srcs);
+    ull shufflingNumber = G.count(srcs);
 
     // Number of Variables, Number of Instructions, Shuffling Number
-    llvm::outs() << numVars << "," << numInstructions << ","
-                 << shufflingNumber.toLongLong() << "\n";
+    llvm::outs() << numVars << "," << numInstructions << "," << shufflingNumber
+                 << "\n";
   }
 
 private:
