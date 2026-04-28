@@ -8,6 +8,7 @@
 #include "llvm/IR/Type.h"
 #include <fstream>
 #include <unordered_set>
+#include <list>
 
 using namespace mlir;
 
@@ -45,13 +46,14 @@ public:
     // Get the LLVM void type
     auto voidType = LLVM::LLVMVoidType::get(module.getContext());
 
+    auto i64Type = IntegerType::get(module.getContext(), 64);
     // Declare rarog_malloc(ptr, i64)
     // ptr is the pointer to the big allocated buffer
     // i64 is the offset from the ptr to allocate the memory
     declareFunction(
       module,
       "rarog_malloc",
-      {ptrType, IntegerType::get(module.getContext(), 64)},
+      {ptrType, i64Type, i64Type},
       ptrType
     );
 
@@ -69,7 +71,7 @@ public:
   declareFunction(
     module,
     "instrumented_malloc",
-    {IntegerType::get(module.getContext(), 64)},
+    {i64Type},
     LLVM::LLVMPointerType::get(module.getContext())
   );
 
@@ -100,8 +102,12 @@ public:
       mallocSize
     ).getResult();
 
-    size_t offset = 0;
     int curBuffer = 0;
+
+    // Create list of free intervals
+    freeIntervals = {{0, neededSize}};
+
+    llvm::DenseMap<Value, std::pair<size_t, size_t>> ptrMetadata;
 
     // modify calls in tf2onnx function
     targetFunc.walk([&](LLVM::CallOp callOp) {
@@ -118,16 +124,16 @@ public:
         if (!isFreed(callOp.getResult(), visited)) return;
 
         OpBuilder builder(callOp);
-        size_t curBufferSize = bufferSizes[curBuffer];
+        size_t offset = allocate(bufferSizes[curBuffer]);
 
         auto cstSize = builder.create<LLVM::ConstantOp>(
           callOp.getLoc(),
           builder.getI64Type(),
-          curBufferSize
+          offset
         );
 
         // Add mallocPtr as first operand
-        llvm::SmallVector<Value> operands = {mallocPtr, cstSize};
+        llvm::SmallVector<Value> operands = {mallocPtr, cstSize, callOp.getOperand(0)};
 
         // Create a call to the rarog_malloc function
         auto newCall = builder.create<LLVM::CallOp>(
@@ -140,11 +146,13 @@ public:
         // Replace the previous uses of malloc for the rarog_malloc result
         callOp.replaceAllUsesWith(newCall.getResults());
 
+        ptrMetadata[newCall.getResult()] = {offset, bufferSizes[curBuffer]};
+        // llvm::outs() << "\nAllocated buffer " << newCall.getResult() << " with offset " << offset << " and size " << bufferSizes[curBuffer] << "\n";
+
         // Erase the previous malloc call
         callOp.erase();
 
         // Update offset and curBuffer
-        offset += curBufferSize;
         ++curBuffer;
       } else if (callee && *callee == "free") {
         OpBuilder builder(callOp);
@@ -155,7 +163,15 @@ public:
           operands.push_back(op);
         }
 
+        Value deallocatedPtr = operands[1];
+        
+        // llvm::outs() << "\nFreeing pointer " << deallocatedPtr << "\n";
+
+        auto [startPos, bufferSize] = ptrMetadata[deallocatedPtr];
+        deallocate(startPos, bufferSize);
+
         // Create a call to the rarog_free function
+        // This function is for debugging purposes only
         auto newCall = builder.create<LLVM::CallOp>(
           callOp.getLoc(),
           callOp.getResultTypes(),
@@ -174,26 +190,93 @@ public:
 
     // Create free call to dealloc created malloc before each return instruction
     // of the function
-for (auto &block : targetFunc.getBlocks()) {
-  auto *terminator = block.getTerminator();
+    for (auto &block : targetFunc.getBlocks()) {
+      auto *terminator = block.getTerminator();
 
-  // Check if block terminator is a return instruction
-  if (terminator && isa<LLVM::ReturnOp>(terminator)) {
-    OpBuilder builder(terminator);
+      // Check if block terminator is a return instruction
+      if (terminator && isa<LLVM::ReturnOp>(terminator)) {
+        OpBuilder builder(terminator);
 
-    builder.create<LLVM::CallOp>(
-      loc,
-      TypeRange{},
-      functionBuilder.getStringAttr("instrumented_free"),
-      mallocPtr
-    );
-  }
-}
+        builder.create<LLVM::CallOp>(
+          loc,
+          TypeRange{},
+          functionBuilder.getStringAttr("instrumented_free"),
+          mallocPtr
+        );
+      }
+    }
   }
 
 private:
   std::string ResultFilename;
   llvm::SmallVector<size_t> bufferSizes;
+  std::list<std::pair<size_t, size_t>> freeIntervals;
+
+  size_t allocate(size_t bufferSize) {
+    // llvm::outs() << "\nAvailable intervals:\n";
+    // for (auto [startPos, sz] : freeIntervals) {
+    //   llvm::outs() << startPos << " " << sz << "\n";
+    // }
+    // llvm::outs() << "Trying to allocate buffer of size " << bufferSize << "\n";
+    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
+      if (bufferSize <= it->second) {
+        size_t startPos = it->first;
+        size_t endPos = startPos+bufferSize;
+        size_t newSize = it->second-bufferSize;
+        if (newSize > 0) {
+          freeIntervals.emplace(it, endPos, newSize);
+        }
+        freeIntervals.erase(it);
+        return startPos;
+      }
+    }
+    return -1;
+  }
+
+  // We can change this to check only for the imediate previous and next element of the list
+  void merge_intervals() {
+    llvm::SmallVector<std::list<std::pair<size_t,size_t>>::iterator> mergedIntervals, toErase;
+    size_t startPos, endPos;
+    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
+      if (mergedIntervals.empty()) {
+        mergedIntervals.emplace_back(it);
+        startPos = it->first;
+        endPos = it->second+startPos;
+      } else {
+        if (it->first == endPos) {
+          mergedIntervals.emplace_back(it);
+          endPos = it->first + it->second;
+        } else {
+          if (mergedIntervals.size() > 1) {
+            freeIntervals.emplace(it, startPos, endPos-startPos);
+            for (auto toEraseIt : mergedIntervals) {
+              toErase.emplace_back(toEraseIt);
+            }
+            mergedIntervals.clear();
+            break;
+          }
+          mergedIntervals.clear();
+          mergedIntervals.emplace_back(it);
+          startPos = it->first;
+          endPos = it->second+startPos;
+        }
+      }
+    }
+    for (auto it : toErase) {
+      freeIntervals.erase(it);
+    }
+  }
+
+  void deallocate(size_t startPos, size_t bufferSize) {
+    // llvm::outs() << "Deallocating buffer starting at " << startPos << " with size " << bufferSize << "\n";
+    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
+      if (it->first > startPos) {
+        freeIntervals.emplace(it, startPos, bufferSize);
+        merge_intervals();
+        return;
+      }
+    }
+  }
 
   bool isFreed(Value pointer, std::unordered_set<Operation *> &visited) {
     for (Operation *user : pointer.getUsers()) {

@@ -96,6 +96,8 @@ void addInstrumentMallocPipeline(OpPassManager &pm) {
 }
 
 void addStaticAllocationPipeline(OpPassManager &pm, const StaticAllocationPipelineOptions &options) {
+  pm.addPass(createCanonicalizerPass());
+
   pm.addPass(rarog::createStaticAllocationPass(options.resultFilename));
 
   // --canonicalize
