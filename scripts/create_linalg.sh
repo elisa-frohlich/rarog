@@ -13,9 +13,9 @@ then
     MODEL_IDX=1
 fi
 
-echo "Running model_$MODEL_IDX"
+# echo "Running model_$MODEL_IDX"
 
-mkdir -p tmp
+# mkdir -p tmp
 
 ONNX_MODEL="${RAROG_ROOT}/onnx_models/model_${MODEL_IDX}.onnx"
 MLIR_MODEL="${RAROG_ROOT}/tmp/model_${MODEL_IDX}.mlir"
