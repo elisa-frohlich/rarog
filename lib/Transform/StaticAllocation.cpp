@@ -1,3 +1,5 @@
+#include "FirstFitAllocation.h"
+#include "NaiveAllocation.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -20,7 +22,7 @@ struct StaticAllocationPass : public PassWrapper<StaticAllocationPass, Operation
 
 public:
 
-  StaticAllocationPass(std::string resultFilename) : ResultFilename(resultFilename) {}
+  StaticAllocationPass(std::string resultFilename, std::string allocationHeuristic) : ResultFilename(resultFilename), AllocationHeuristic(allocationHeuristic) {}
 
   void runOnOperation() override {
     if (!llvm::sys::fs::exists(ResultFilename)) {
@@ -53,19 +55,19 @@ public:
     declareFunction(
       module,
       "rarog_malloc",
-      {ptrType, i64Type, i64Type},
+      {ptrType, i64Type},
       ptrType
     );
 
-    // Declare rarog_free(ptr, ptr)
-    // The first ptr is the pointer to the big allocated buffer
-    // The second ptr is the pointer to the buffer being deallocated
-    declareFunction(
-      module,
-      "rarog_free",
-      {ptrType, ptrType},
-      voidType
-    );
+    // // Declare rarog_free(ptr, ptr)
+    // // The first ptr is the pointer to the big allocated buffer
+    // // The second ptr is the pointer to the buffer being deallocated
+    // declareFunction(
+    //   module,
+    //   "rarog_free",
+    //   {ptrType, ptrType},
+    //   voidType
+    // );
 
     // Declare instrumented_malloc
   declareFunction(
@@ -91,7 +93,59 @@ public:
     Location loc = module.getLoc();
 
     // Compute the size of the allocated buffers for the model
-    size_t neededSize = parseResultFile();
+    parseResultFile();
+
+    size_t curOperation = 0;
+    size_t curBuffer = 0;
+
+    // Map associating pointers to indexes
+    llvm::DenseMap<Value, size_t> ptrIndex;
+
+    // Map associating pointer indexes to pointer metadata
+    // Pointer metadata contains: alloc position, free position and buffer size
+    llvm::DenseMap<size_t, std::tuple<size_t, size_t, size_t>> ptrMetadata;
+
+    // Create instance of the static memory allocation problem
+    targetFunc.walk([&](LLVM::CallOp callOp) {
+      auto callee = callOp.getCallee();
+      if (callee && *callee == "malloc") {
+        // Find if the current malloc will be deallocated
+        // If yes, add it to the packing problem
+        // If not, it should be kept as a normal malloc
+        std::unordered_set<Operation *> visited;
+        if (!isFreed(callOp.getResult(), visited)) return;
+
+        // Associate the buffer with an index
+        ptrIndex[callOp.getResult()] = curBuffer;
+
+        // Get the operation index and size of the buffer
+        ptrMetadata[curBuffer] = {curOperation, 0, bufferSizes[curBuffer]};
+
+        // Update curBuffer and curOperation
+        ++curBuffer;
+        ++curOperation;
+      } else if (callee && *callee == "free") {
+        // Find the pointer index of the deallocated buffer
+        Value deallocatedPtr = callOp.getOperand(0);
+        size_t ptrIdx = ptrIndex.at(deallocatedPtr);
+
+        // Update the free position of the pointer metadata
+        auto [allocPos, freePos, size] = ptrMetadata.at(ptrIdx);
+        ptrMetadata[ptrIdx] = {allocPos, curOperation, size};
+        
+        ++curOperation;
+      }
+    });
+
+    llvm::SmallVector<std::tuple<size_t, size_t, size_t>> buffers;
+    llvm::sort(buffers.begin(), buffers.end());
+    for (size_t i = 0; i < curBuffer; ++i) {
+      buffers.emplace_back(ptrMetadata.at(i));
+    }
+
+    auto [allocations, neededSize] = run_static_allocation(buffers);
+
+    // Define mallocSize as the needed size to allocate the buffers in the selected heuristic
     Value mallocSize = functionBuilder.create<LLVM::ConstantOp>(loc, functionBuilder.getI64Type(), neededSize);
 
     // Create a call to malloc with size mallocSize
@@ -102,14 +156,9 @@ public:
       mallocSize
     ).getResult();
 
-    int curBuffer = 0;
+    curBuffer = 0;
 
-    // Create list of free intervals
-    freeIntervals = {{0, neededSize}};
-
-    llvm::DenseMap<Value, std::pair<size_t, size_t>> ptrMetadata;
-
-    // modify calls in tf2onnx function
+    // modify calls in the function body
     targetFunc.walk([&](LLVM::CallOp callOp) {
       // We don't want to modify the first malloc call
       if (callOp.getResult() == mallocPtr) return;
@@ -118,22 +167,24 @@ public:
       if (callee && *callee == "malloc") {
         // Find if the current malloc will be deallocated
         // If yes, change it to rarog_malloc
-        // If not, it should not be deallocated and should be kept
-
+        // If not, keep it as a normal malloc
         std::unordered_set<Operation *> visited;
         if (!isFreed(callOp.getResult(), visited)) return;
 
         OpBuilder builder(callOp);
-        size_t offset = allocate(bufferSizes[curBuffer]);
 
+        // Get the offset from the allocations vector
+        size_t offset = allocations[curBuffer];
+
+        // Set a constant for the offset
         auto cstSize = builder.create<LLVM::ConstantOp>(
           callOp.getLoc(),
           builder.getI64Type(),
           offset
         );
 
-        // Add mallocPtr as first operand
-        llvm::SmallVector<Value> operands = {mallocPtr, cstSize, callOp.getOperand(0)};
+        // Create operands vector
+        llvm::SmallVector<Value> operands = {mallocPtr, cstSize};
 
         // Create a call to the rarog_malloc function
         auto newCall = builder.create<LLVM::CallOp>(
@@ -146,44 +197,13 @@ public:
         // Replace the previous uses of malloc for the rarog_malloc result
         callOp.replaceAllUsesWith(newCall.getResults());
 
-        ptrMetadata[newCall.getResult()] = {offset, bufferSizes[curBuffer]};
-        // llvm::outs() << "\nAllocated buffer " << newCall.getResult() << " with offset " << offset << " and size " << bufferSizes[curBuffer] << "\n";
-
         // Erase the previous malloc call
         callOp.erase();
 
-        // Update offset and curBuffer
+        // Update curBuffer
         ++curBuffer;
       } else if (callee && *callee == "free") {
-        OpBuilder builder(callOp);
-
-        // Add mallocPtr as first operand
-        llvm::SmallVector<Value> operands = {mallocPtr};
-        for (auto op : callOp.getOperands()) {
-          operands.push_back(op);
-        }
-
-        Value deallocatedPtr = operands[1];
-        
-        // llvm::outs() << "\nFreeing pointer " << deallocatedPtr << "\n";
-
-        auto [startPos, bufferSize] = ptrMetadata[deallocatedPtr];
-        deallocate(startPos, bufferSize);
-
-        // Create a call to the rarog_free function
-        // This function is for debugging purposes only
-        auto newCall = builder.create<LLVM::CallOp>(
-          callOp.getLoc(),
-          callOp.getResultTypes(),
-          builder.getStringAttr("rarog_free"),
-          operands
-        );
-
-        // Replace the previous uses of malloc for the rarog_free result
-        // (probably useless)
-        callOp.replaceAllUsesWith(newCall.getResults());
-
-        // Erase the previous free call
+        // Delete the free call since it's processed during the static allocation
         callOp.erase();
       }
     });
@@ -209,72 +229,16 @@ public:
 
 private:
   std::string ResultFilename;
+  std::string AllocationHeuristic;
   llvm::SmallVector<size_t> bufferSizes;
-  std::list<std::pair<size_t, size_t>> freeIntervals;
 
-  size_t allocate(size_t bufferSize) {
-    // llvm::outs() << "\nAvailable intervals:\n";
-    // for (auto [startPos, sz] : freeIntervals) {
-    //   llvm::outs() << startPos << " " << sz << "\n";
-    // }
-    // llvm::outs() << "Trying to allocate buffer of size " << bufferSize << "\n";
-    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
-      if (bufferSize <= it->second) {
-        size_t startPos = it->first;
-        size_t endPos = startPos+bufferSize;
-        size_t newSize = it->second-bufferSize;
-        if (newSize > 0) {
-          freeIntervals.emplace(it, endPos, newSize);
-        }
-        freeIntervals.erase(it);
-        return startPos;
-      }
-    }
-    return -1;
-  }
-
-  // We can change this to check only for the imediate previous and next element of the list
-  void merge_intervals() {
-    llvm::SmallVector<std::list<std::pair<size_t,size_t>>::iterator> mergedIntervals, toErase;
-    size_t startPos, endPos;
-    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
-      if (mergedIntervals.empty()) {
-        mergedIntervals.emplace_back(it);
-        startPos = it->first;
-        endPos = it->second+startPos;
-      } else {
-        if (it->first == endPos) {
-          mergedIntervals.emplace_back(it);
-          endPos = it->first + it->second;
-        } else {
-          if (mergedIntervals.size() > 1) {
-            freeIntervals.emplace(it, startPos, endPos-startPos);
-            for (auto toEraseIt : mergedIntervals) {
-              toErase.emplace_back(toEraseIt);
-            }
-            mergedIntervals.clear();
-            break;
-          }
-          mergedIntervals.clear();
-          mergedIntervals.emplace_back(it);
-          startPos = it->first;
-          endPos = it->second+startPos;
-        }
-      }
-    }
-    for (auto it : toErase) {
-      freeIntervals.erase(it);
-    }
-  }
-
-  void deallocate(size_t startPos, size_t bufferSize) {
-    // llvm::outs() << "Deallocating buffer starting at " << startPos << " with size " << bufferSize << "\n";
-    for (auto it = freeIntervals.begin(); it != freeIntervals.end(); ++it) {
-      if (it->first > startPos) {
-        freeIntervals.emplace(it, startPos, bufferSize);
-        merge_intervals();
-        return;
-      }
+  // Input: vector of triples containing, for each buffer: alloc position, free position and buffer size
+  // Output: vector of offset for each buffer and memory needed to allocate all the vectors
+  std::pair<llvm::SmallVector<size_t>, size_t> run_static_allocation(llvm::SmallVector<std::tuple<size_t, size_t, size_t>> buffers) {
+    if (AllocationHeuristic == "no-free") {
+      return naive_allocation(buffers);
+    } else {
+      return first_fit_allocation(buffers);
     }
   }
 
@@ -319,31 +283,28 @@ private:
     builder.create<LLVM::LLVMFuncOp>(module.getLoc(), name, funcType);
   }
 
-  int parseResultFile() {
+  void parseResultFile() {
     std::ifstream resultFile(ResultFilename);
 
-    size_t totalSize = 0;
     std::string op;
     while (resultFile >> op) {
       if (op == "malloc") {
         std::string ptr;
         size_t size;
         resultFile >> ptr >> size;
-        totalSize += size;
         bufferSizes.emplace_back(size);
       } else {
         std::string ptr;
         resultFile >> ptr;
       }
     }
-    return totalSize;
   }
 };
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> createStaticAllocationPass(std::string resultFilename) {
-  return std::make_unique<StaticAllocationPass>(resultFilename);
+std::unique_ptr<mlir::Pass> createStaticAllocationPass(std::string resultFilename, std::string allocationHeuristic) {
+  return std::make_unique<StaticAllocationPass>(resultFilename, allocationHeuristic);
 }
 
 } // namespace rarog

@@ -23,6 +23,7 @@ fi
 LINALG_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_linalg.mlir"
 STATIC_ALLOCATION_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}_static_allocation.mlir"
 INSTRUMENTED_OUTPUT="${RAROG_ROOT}/tmp/${MODEL_NAME}.out"
+ALLOCATION_HEURISTIC="${ALLOCATION_HEURISTIC:-first-fit}"
 
 if ! [ -f $LINALG_MODEL ]
 then
@@ -37,5 +38,5 @@ fi
 
 $RAROG_OPT_PATH \
     --nasbench-lowering-pipeline="enable-reorder-frees" \
-    --static-allocation="result-file=${INSTRUMENTED_OUTPUT}" \
+    --static-allocation="result-file=${INSTRUMENTED_OUTPUT} allocation-heuristic=${ALLOCATION_HEURISTIC}" \
     $LINALG_MODEL -o $STATIC_ALLOCATION_MODEL

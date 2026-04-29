@@ -35,6 +35,13 @@ struct StaticAllocationPipelineOptions : public PassPipelineOptions<StaticAlloca
     llvm::cl::desc("<Malloc instrumentation result file>"),
     llvm::cl::Required
   };
+
+  Option<std::string> allocationHeuristic{
+    *this,
+    "allocation-heuristic",
+    llvm::cl::desc("<Available allocation heuristics: no-free, first-fit>"),
+    llvm::cl::init("first-fit")
+  };
 };
 
 namespace {
@@ -89,6 +96,8 @@ void addNasbenchLoweringPipeline(OpPassManager &pm, const NasbenchLoweringPipeli
   pm.addPass(createFinalizeMemRefToLLVMConversionPass());
   // --reconcile-unrealized-casts
   pm.addPass(createReconcileUnrealizedCastsPass());
+  // --canonicalize
+  pm.addPass(createCanonicalizerPass());
 }
 
 void addInstrumentMallocPipeline(OpPassManager &pm) {
@@ -96,9 +105,9 @@ void addInstrumentMallocPipeline(OpPassManager &pm) {
 }
 
 void addStaticAllocationPipeline(OpPassManager &pm, const StaticAllocationPipelineOptions &options) {
-  pm.addPass(createCanonicalizerPass());
+  // pm.addPass(createCanonicalizerPass());
 
-  pm.addPass(rarog::createStaticAllocationPass(options.resultFilename));
+  pm.addPass(rarog::createStaticAllocationPass(options.resultFilename, options.allocationHeuristic));
 
   // --canonicalize
   pm.addPass(createCanonicalizerPass());
