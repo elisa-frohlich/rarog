@@ -15,9 +15,9 @@ MODEL_PATH="${MODEL_PATH:-$RAROG_ROOT/onnx_models}"
 MODEL_NAME="${MODEL_NAME:-model_1}"
 
 
-echo "Running $MODEL_NAME"
+# echo "Running model_$MODEL_IDX"
 
-mkdir -p tmp
+# mkdir -p tmp
 
 ONNX_MODEL="${MODEL_PATH}/${MODEL_NAME}.onnx"
 MLIR_MODEL="${RAROG_ROOT}/tmp/${MODEL_NAME}.mlir"

@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
   mlir::registerAllPasses();
 
   rarog::registerMemoryAllocationInstantiationPipeline();
+  rarog::registerShufflingNumberPipeline();
   rarog::registerNasbenchLoweringPipeline();
   rarog::registerInstrumentMallocPipeline();
   rarog::registerReorderFreesPipeline();

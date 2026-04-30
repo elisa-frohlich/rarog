@@ -1,6 +1,7 @@
 add_mlir_library(RarogAnalysis
     Pipeline.cpp
     MemoryAllocationInstantiation.cpp
+    ShufflingNumber.cpp
 
     LINK_LIBS PUBLIC
       MLIRIR
