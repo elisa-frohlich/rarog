@@ -14,6 +14,7 @@ target_link_libraries(rarog-opt
 
   RarogAnalysis
   RarogTransform
+  RarogUtils
 
   # MLIR dependencies
   MLIROptLib

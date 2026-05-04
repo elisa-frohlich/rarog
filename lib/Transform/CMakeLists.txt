@@ -2,6 +2,8 @@ add_mlir_library(RarogTransform
     Pipeline.cpp
     AddNasbenchMainFunction.cpp
     InstrumentMalloc.cpp
+    ReorderFrees.cpp
+    StaticAllocation.cpp
 
     LINK_LIBS PUBLIC
       MLIRIR
@@ -16,4 +18,5 @@ add_mlir_library(RarogTransform
 target_include_directories(RarogTransform
     PUBLIC
     ${PROJECT_SOURCE_DIR}/include/Transform
+    ${PROJECT_SOURCE_DIR}/include/Utils
 )

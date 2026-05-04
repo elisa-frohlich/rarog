@@ -21,6 +21,8 @@ int main(int argc, char **argv) {
   rarog::registerShufflingNumberPipeline();
   rarog::registerNasbenchLoweringPipeline();
   rarog::registerInstrumentMallocPipeline();
+  rarog::registerReorderFreesPipeline();
+  rarog::registerStaticAllocationPipeline();
 
   mlir::DialectRegistry registry;
   mlir::registerAllDialects(registry);
