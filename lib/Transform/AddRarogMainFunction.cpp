@@ -15,7 +15,7 @@ namespace rarog {
 
 namespace {
 
-  struct AddNasbenchMainFunctionPass : public PassWrapper<AddNasbenchMainFunctionPass, OperationPass<ModuleOp>> {
+  struct AddRarogMainFunctionPass : public PassWrapper<AddRarogMainFunctionPass, OperationPass<ModuleOp>> {
   
     void runOnOperation() override {
       ModuleOp module = getOperation();
@@ -122,8 +122,8 @@ namespace {
   };
 } // namespace
 
-std::unique_ptr<mlir::Pass> createAddNasbenchMainFunctionPass() {
-  return std::make_unique<AddNasbenchMainFunctionPass>();
+std::unique_ptr<mlir::Pass> createAddRarogMainFunctionPass() {
+  return std::make_unique<AddRarogMainFunctionPass>();
 }
 
 } // namespace rarog
