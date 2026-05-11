@@ -14,7 +14,7 @@ namespace rarog {
 
 namespace {
 
-  struct ReorderFreesPass : public PassWrapper<ReorderFreesPass, OperationPass<ModuleOp>> {
+  struct HoistDeallocPass : public PassWrapper<HoistDeallocPass, OperationPass<ModuleOp>> {
 
     void runOnOperation() override {
       ModuleOp module = getOperation();
@@ -56,7 +56,6 @@ namespace {
 
         if (!hasDeallocInst) return;
 
-        auto result = allocOp.getResult();
         std::queue<Operation *> users;
         Operation * lastUser = allocOp;
 
@@ -107,8 +106,8 @@ namespace {
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> createReorderFreesPass() {
-  return std::make_unique<ReorderFreesPass>();
+std::unique_ptr<mlir::Pass> createHoistDeallocPass() {
+  return std::make_unique<HoistDeallocPass>();
 }
 
 } // namespace rarog
